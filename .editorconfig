@@ -1,0 +1,26 @@
+# Formatting rules of the guide. shfmt reads this file, and dyshellint passes the
+# same options explicitly so that a run is identical without an editor.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{sh,bash,bats}]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+# shfmt: two-space indent, indented case bodies, binary operators at the start
+# of a continued line, and a space after a redirection operator.
+shell_variant = bash
+switch_case_indent = true
+binary_next_line = true
+space_redirects = true
+
+[*.go]
+indent_style = tab
+
+[*.md]
+trim_trailing_whitespace = false
