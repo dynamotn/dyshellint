@@ -15,6 +15,7 @@ import (
 
 	"gitlab.com/dynamo-tools/dyshellint/internal/lint"
 	"gitlab.com/dynamo-tools/dyshellint/internal/rules"
+	"gitlab.com/dynamo-tools/dyshellint/internal/version"
 )
 
 func main() {
@@ -42,6 +43,7 @@ type options struct {
 	noWarnings       bool
 	warningsAsErrors bool
 	listRules        bool
+	showVersion      bool
 	stdinFilename    string
 }
 
@@ -59,6 +61,7 @@ func run(args []string, stdout, stderr *os.File) error {
 	flags.BoolVar(&opts.noWarnings, "no-warnings", false, "report only errors")
 	flags.BoolVar(&opts.warningsAsErrors, "warnings-as-errors", false, "fail the run on warnings too")
 	flags.BoolVar(&opts.listRules, "list-rules", false, "print every rule and exit")
+	flags.BoolVar(&opts.showVersion, "version", false, "print the version and exit")
 	flags.StringVar(&opts.stdinFilename, "stdin-filename", "stdin.sh", "name to report findings under when reading `-`")
 	flags.Usage = func() {
 		fmt.Fprintln(stderr, "usage: dyshellint [options] <path>...")
@@ -66,6 +69,10 @@ func run(args []string, stdout, stderr *os.File) error {
 		flags.PrintDefaults()
 	}
 	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if opts.showVersion {
+		_, err := fmt.Fprintln(stdout, version.GetBuildInfo())
 		return err
 	}
 	if opts.listRules {

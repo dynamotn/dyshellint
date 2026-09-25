@@ -1,0 +1,50 @@
+version: 2
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: ./cmd/dyshellint
+    id: dyshellint
+    binary: dyshellint
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    ignore:
+      # Go dropped both of these for macOS.
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+    ldflags:
+      - -s -w
+      - -X gitlab.com/dynamo-tools/dyshellint/internal/version.version={{.Version}}
+      - -X gitlab.com/dynamo-tools/dyshellint/internal/version.gitCommit={{.Commit}}
+      - -X gitlab.com/dynamo-tools/dyshellint/internal/version.gitTreeState=clean
+      - -X gitlab.com/dynamo-tools/dyshellint/internal/version.buildTime={{.Timestamp}}
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}
+    formats:
+      - tar.gz
+release:
+  github:
+    owner: dynamotn
+    name: dyshellint
+checksum:
+  name_template: 'CHECKSUMS'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'

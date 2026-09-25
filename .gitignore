@@ -1,2 +1,5 @@
 # Build output of cmd/dyshellint
 /bin/
+
+# goreleaser output
+/dist/
