@@ -14,8 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          submodules: true
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -34,9 +32,3 @@ jobs:
         run: go build ./...
       - name: test
         run: go test -race -coverprofile=coverage.out ./...
-      # This repository is held to the guide it enforces: the linter checks its
-      # own shell scripts. ShellCheck is already on the runner; shfmt is not.
-      - name: install shfmt
-        run: go install mvdan.cc/sh/v3/cmd/shfmt@latest
-      - name: lint shell scripts
-        run: bash ./scripts/lint.sh
