@@ -55,8 +55,52 @@ when the linter itself could not run. A CI job can tell the two apart.
 
 Every finding carries a code: `BSG###` for a rule of the guide, `SC####` for a
 ShellCheck finding, and `FMT001` for a formatting difference. Any of them can be
-turned off for a run with `--exclude-rules`, and a ShellCheck finding can be
-silenced in place with a `# shellcheck disable=SCXXXX` comment that says why.
+turned off for a run with `--exclude-rules`, or silenced in place with a
+disable comment.
+
+## Silence a finding in place
+
+A `# dyshellint disable=CODE,...` comment works the way ShellCheck's own
+`# shellcheck disable=` does, and covers every code `dyshellint` reports: the
+rules of the guide, ShellCheck and shfmt alike. Anything after the codes is free
+text, which is where the reason for the exception belongs.
+
+Where the comment sits decides how far it reaches:
+
+```sh
+#!/usr/bin/env bash
+# dyshellint disable=BSG020 # the header lives in the wrapper script
+# At the top of the file, before the first command: the whole file.
+
+set -euo pipefail
+
+# dyshellint disable=BSG002,BSG003 # the name is the public API of a vendored lib
+function Demo() {
+  # On its own line: the command below and everything nested in it, so a
+  # comment above a function covers the whole function.
+  echo "hi"
+}
+
+grep -r $pattern . # dyshellint disable=SC2086 # the pattern is a word list
+# At the end of a line: that line alone.
+```
+
+`disable=all` silences every code in the scope of the comment. A file the parser
+cannot read has no directives, since its only finding is the syntax error
+itself.
+
+A `# shellcheck disable=SC####` comment is read as well, and silences the
+ShellCheck codes it names — never a `BSG###` or `FMT001`, not even through
+`disable=all`. It is scoped the way every directive here is, so it also works at
+the end of a line, where ShellCheck itself ignores it. Keep the reason in a
+comment of its own: ShellCheck rejects free text inside its own directive.
+
+```sh
+# shellcheck disable=SC2034 # <- breaks ShellCheck's own parser, write it as:
+# The variable is read by the sourced template.
+# shellcheck disable=SC2034
+template_name="release"
+```
 
 ## Configure
 

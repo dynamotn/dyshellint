@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A `# dyshellint disable=CODE,...` comment silences a finding in place, the
+  way ShellCheck's own `# shellcheck disable=` does, and covers every code the
+  linter reports: `BSG###`, `SC####` and `FMT001`. At the top of a file it
+  covers the whole file, on its own line above a command it covers that command
+  and everything nested in it, and at the end of a line it covers that line
+  alone. `disable=all` silences every code in scope, and the text after the
+  codes is free, for the reason behind the exception.
+- A `# shellcheck disable=SC####` comment silences those ShellCheck findings in
+  `dyshellint` too, scoped the same way — including at the end of a line, where
+  ShellCheck itself ignores the comment. It never silences a `BSG###` or
+  `FMT001`, not even through `disable=all`.
+
 ## [0.1.1]
 
 ## [0.1.0]

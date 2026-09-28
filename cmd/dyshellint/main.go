@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"gitlab.com/dynamo-tools/dyshellint/internal/directive"
 	"gitlab.com/dynamo-tools/dyshellint/internal/lint"
 	"gitlab.com/dynamo-tools/dyshellint/internal/rules"
 	"gitlab.com/dynamo-tools/dyshellint/internal/version"
@@ -151,6 +152,9 @@ func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Find
 		return nil, err
 	}
 	paths := make([]string, 0, len(sources))
+	// A file that the parser rejects has no directives, so nothing of it is
+	// silenced: the syntax error is the only finding it can carry anyway.
+	directives := make(map[string]*directive.Set, len(sources))
 	var findings []lint.Finding
 	for _, source := range sources {
 		paths = append(paths, source.Disk)
@@ -162,6 +166,7 @@ func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Find
 			continue
 		}
 		file.ModeKnown = source.ModeKnown
+		directives[source.Name] = directive.Parse(file.Lines, file.Syntax)
 		findings = append(findings, rules.Run(file, selected)...)
 	}
 	if !opts.noShellcheck {
@@ -191,7 +196,21 @@ func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Find
 		}
 		findings = append(findings, filterExternal(rename(sources, external), opts)...)
 	}
-	return findings, nil
+	return suppress(findings, directives), nil
+}
+
+// suppress drops the findings a `# dyshellint disable=` comment silences. It
+// runs over the whole list, so one comment covers the rules of the guide and
+// the findings of shellcheck and shfmt alike.
+func suppress(findings []lint.Finding, directives map[string]*directive.Set) []lint.Finding {
+	out := findings[:0]
+	for _, finding := range findings {
+		if directives[finding.File].Suppressed(finding.Line, finding.Rule) {
+			continue
+		}
+		out = append(out, finding)
+	}
+	return out
 }
 
 // rename puts the findings of the external tools back under the name the
