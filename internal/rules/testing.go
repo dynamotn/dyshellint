@@ -21,7 +21,7 @@ func init() {
 }
 
 func checkLibraryHasTest(f *File, r *Reporter) {
-	if f.Role != RoleLibrary || f.Namespace == "" || !isLibraryPath(f.Path) {
+	if f.Role != RoleLibrary || !isLibraryPath(f.Path) {
 		return
 	}
 	// `scripts/lib/<area>.sh` is tested by `scripts/test/<area>.bats`. Without a
@@ -32,7 +32,9 @@ func checkLibraryHasTest(f *File, r *Reporter) {
 	if info, err := os.Stat(testDir); err != nil || !info.IsDir() {
 		return
 	}
-	test := filepath.Join(testDir, f.Namespace+".bats")
+	// The layout follows the name of the file, not the namespace its header may
+	// declare: a reader looks the test up by the file they are reading.
+	test := filepath.Join(testDir, BaseName(f.Path)+".bats")
 	if _, err := os.Stat(test); err == nil {
 		return
 	}

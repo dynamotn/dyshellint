@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A file header can declare the namespace its functions belong to, with
+  `# @namespace NAME` or `# dyshellint namespace=NAME`, so a library no longer
+  has to be named after the namespace it exports. `BSG004` measures every
+  function against the declaration, and reports a declaration that is not a
+  usable name. An entrypoint that declares one is held to it too, instead of to
+  the `_` privacy prefix. `BSG060` still looks a test up by the name of the
+  file.
+
 ## [0.2.0]
 
 ### Added

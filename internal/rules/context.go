@@ -48,8 +48,16 @@ type File struct {
 	Shebang string
 	// Namespace is the namespace a library file's functions are expected to
 	// use, derived from the base name: `scripts/lib/package_manager.sh` gives
-	// `package_manager`. It is empty for entrypoints.
+	// `package_manager`. A `namespace=` comment in the file header replaces it,
+	// for a file whose functions read better under another name. It is empty
+	// for an entrypoint that declares none.
 	Namespace string
+	// NamespaceDecl is the namespace the header declares, exactly as written,
+	// and empty when the header declares none.
+	NamespaceDecl string
+	// NamespaceLine is the line the declaration sits on, one-based, so the rule
+	// that validates it can point at the comment.
+	NamespaceLine int
 	// UsesDybatpho reports whether the file sources dybatpho, which relaxes the
 	// `set -euo pipefail` rule and enables the dybatpho-specific checks.
 	UsesDybatpho bool
@@ -153,9 +161,66 @@ func NewFile(path string, src []byte, executable bool) (*File, error) {
 		f.Role = RoleLibrary
 	}
 	if f.Role == RoleLibrary {
-		f.Namespace = strings.TrimSuffix(filepath.Base(path), ".sh")
+		f.Namespace = BaseName(path)
+	}
+	f.NamespaceDecl, f.NamespaceLine = namespaceDecl(prog)
+	if namespacePattern.MatchString(f.NamespaceDecl) {
+		// A declaration names the namespace of any file that carries one, so a
+		// script meant to be sourced as well as run can hold its functions
+		// together without being renamed.
+		f.Namespace = f.NamespaceDecl
 	}
 	return f, nil
+}
+
+// namespaceDeclPattern matches the comment that gives a file a namespace of its
+// own, in either spelling: the directive vocabulary of this linter, and the
+// shdoc-shaped tag that reads like the rest of a file header.
+var namespaceDeclPattern = regexp.MustCompile(`(?i)^\s*(?:dyshellint\s+namespace=|@namespace\s+)(\S+)`)
+
+// namespacePattern is what a namespace may be made of, the same vocabulary the
+// namespace half of a function name allows.
+var namespacePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_]*$`)
+
+// namespaceDecl returns the namespace the file header declares, as written, and
+// the line it sits on. Only the header is read: a namespace belongs with the
+// `@file` and `@brief` of a file, not half way down it.
+func namespaceDecl(prog *syntax.File) (decl string, line int) {
+	first := headerEnd(prog)
+	syntax.Walk(prog, func(node syntax.Node) bool {
+		comment, ok := node.(*syntax.Comment)
+		if !ok {
+			return true
+		}
+		at := int(comment.Pos().Line())
+		if first > 0 && at >= first {
+			return true
+		}
+		if line > 0 && at >= line {
+			return true
+		}
+		if match := namespaceDeclPattern.FindStringSubmatch(comment.Text); match != nil {
+			decl, line = match[1], at
+		}
+		return true
+	})
+	return decl, line
+}
+
+// headerEnd returns the line the first command of the file starts on, which is
+// where its header stops. It is zero for a file that runs nothing.
+func headerEnd(prog *syntax.File) int {
+	if len(prog.Stmts) == 0 {
+		return 0
+	}
+	return int(prog.Stmts[0].Pos().Line())
+}
+
+// BaseName returns the name a file is known by, which is what the layout rules
+// of the guide are written against: `scripts/lib/package_manager.sh` gives
+// `package_manager`.
+func BaseName(path string) string {
+	return strings.TrimSuffix(filepath.Base(path), ".sh")
 }
 
 // shebangOf returns the shebang of a file. A shebang pushed below a comment is

@@ -102,6 +102,36 @@ comment of its own: ShellCheck rejects free text inside its own directive.
 template_name="release"
 ```
 
+## Give a file another namespace
+
+`BSG004` expects the functions of a library to be named after their file:
+`scripts/lib/package_manager.sh` holds `package_manager::install` and
+`__package_manager_helper`. When the file reads better under another name, the
+header declares it, in either spelling:
+
+```sh
+# @file pacman_wrapper.sh
+# @brief Install packages with pacman
+# @description ...
+# @namespace pkg
+# dyshellint namespace=pkg   # the same thing, in the directive vocabulary
+
+function pkg::install {
+  :
+}
+```
+
+The declaration is only read in the file header, before the first command,
+which is where the rest of the shdoc tags live. It must be a name a function can
+carry — lowercase, digits and underscores — and a declaration that is not is
+reported as a `BSG004` of its own, with the file name standing in for it.
+
+A script that carries no `lib/` path can declare one too, which holds its
+functions to that namespace instead of asking for the `_` prefix an entrypoint
+otherwise takes. `BSG060` is unaffected: a test file is looked up by the name of
+the library it covers, so `pacman_wrapper.sh` is still tested by
+`test/pacman_wrapper.bats`.
+
 ## Configure
 
 `dyshellint` has no configuration file of its own. It reads the `.shellcheckrc`

@@ -43,7 +43,7 @@ func init() {
 			Code:     "BSG004",
 			Section:  sectionFunctionNames,
 			Severity: lint.SeverityError,
-			Doc:      "Name library functions after the file: `<file>::name`, or `__<file>_name` when private",
+			Doc:      "Name library functions after the file, or the declared namespace: `<name>::fn`, or `__<name>_fn` when private",
 			Check:    checkFunctionNamespace,
 		},
 	)
@@ -95,21 +95,27 @@ func checkFunctionNameStyle(f *File, r *Reporter) {
 }
 
 func checkFunctionNamespace(f *File, r *Reporter) {
+	if f.NamespaceDecl != "" && !namespacePattern.MatchString(f.NamespaceDecl) {
+		// The declaration is what every function of the file is measured
+		// against, so a broken one is reported rather than quietly ignored.
+		r.AtLine(f.NamespaceLine, "%q is not a namespace; declare it in lowercase with underscores, as in `%s`",
+			f.NamespaceDecl, BaseName(f.Path))
+	}
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		name := decl.Name.Value
-		switch f.Role {
-		case RoleLibrary:
-			if f.Namespace == "" {
-				return
-			}
+		// A file that declares a namespace holds its functions to it whatever
+		// its role, so a script that is sourced as well as run can keep them
+		// together.
+		switch {
+		case f.Namespace != "":
 			switch {
 			case strings.HasPrefix(name, f.Namespace+"::"):
 			case strings.HasPrefix(name, "__"+f.Namespace+"_"):
 			default:
-				r.At(decl.Name.Pos(), "%q does not belong to this library; name it `%s::%s` when it is public, or `__%s_%s` when it is private",
-					name, f.Namespace, strings.TrimLeft(trimNamespace(name), "_"), f.Namespace, strings.TrimLeft(trimNamespace(name), "_"))
+				r.At(decl.Name.Pos(), "%q is outside the `%s` namespace of this file; name it `%s::%s` when it is public, or `__%s_%s` when it is private",
+					name, f.Namespace, f.Namespace, strings.TrimLeft(trimNamespace(name), "_"), f.Namespace, strings.TrimLeft(trimNamespace(name), "_"))
 			}
-		case RoleEntrypoint:
+		case f.Role == RoleEntrypoint:
 			if strings.Contains(name, "::") || strings.HasPrefix(name, "_") {
 				return
 			}
