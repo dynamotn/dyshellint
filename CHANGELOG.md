@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- An shdoc tag whose text starts on the line below it, as in a bare
+  `# @description` followed by an indented paragraph, now counts as documented.
+  `BSG020` and `BSG021` no longer report such a file header or function as
+  missing its `@description`. A tag with no text at all is still reported.
+
 ## [0.3.0]
 
 ### Added

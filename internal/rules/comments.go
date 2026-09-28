@@ -77,19 +77,46 @@ func fileHeader(f *File) []string {
 	return header
 }
 
+// commentBody strips the leading `#` markers of a comment line, so that a
+// separator line made of `#` alone comes back empty.
+func commentBody(line string) string {
+	return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(line), "#"))
+}
+
+// headerHasTag reports whether the header carries the tag together with its
+// text. shdoc lets the text start on the line below the tag, so a bare
+// `# @description` line counts as long as the next comment line carries the
+// text instead of another tag.
+func headerHasTag(header []string, tag string) bool {
+	for i, line := range header {
+		body := commentBody(line)
+		if body == tag {
+			if i+1 >= len(header) {
+				return false
+			}
+			next := commentBody(header[i+1])
+			return next != "" && !strings.HasPrefix(next, "@")
+		}
+		if strings.HasPrefix(body, tag+" ") && strings.TrimSpace(strings.TrimPrefix(body, tag+" ")) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func checkFileHeader(f *File, r *Reporter) {
-	header := strings.Join(fileHeader(f), "\n")
+	header := fileHeader(f)
 	line := 1
 	if f.Shebang != "" {
 		line = 2
 	}
 	var missing []string
 	for _, tag := range headerTags {
-		if !strings.Contains(header, tag+" ") {
+		if !headerHasTag(header, tag) {
 			missing = append(missing, tag)
 		}
 	}
-	if len(missing) == len(headerTags) && header == "" {
+	if len(missing) == len(headerTags) && len(header) == 0 {
 		r.AtLine(line, "no file header; open the file with an shdoc comment carrying %s", strings.Join(headerTags, ", "))
 		return
 	}
@@ -133,9 +160,18 @@ func commentText(block []syntax.Comment) string {
 	return b.String()
 }
 
+// commentLines returns the block as the lines headerHasTag reads.
+func commentLines(block []syntax.Comment) []string {
+	lines := make([]string, 0, len(block))
+	for _, comment := range block {
+		lines = append(lines, comment.Text)
+	}
+	return lines
+}
+
 func checkFunctionDescription(f *File, r *Reporter) {
 	for decl, block := range funcComments(f) {
-		if strings.Contains(commentText(block), "@description") {
+		if headerHasTag(commentLines(block), "@description") {
 			continue
 		}
 		r.At(decl.Position, "%q has no shdoc header; document it with `# @description ...` above the declaration", decl.Name.Value)
@@ -149,7 +185,7 @@ var positionalRef = regexp.MustCompile(`\$\{?[1-9@*]`)
 func checkFunctionArgs(f *File, r *Reporter) {
 	for decl, block := range funcComments(f) {
 		text := commentText(block)
-		if text == "" || !strings.Contains(text, "@description") {
+		if text == "" || !headerHasTag(commentLines(block), "@description") {
 			// BSG021 already reports the missing header; one finding is enough.
 			continue
 		}
