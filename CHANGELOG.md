@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG089` also points a script that loads dybatpho at `dybatpho::safe_rm`, which refuses an empty, protected or out-of-root path.
 
+- `BSG087` also points a script that loads dybatpho at `dybatpho::is int`, which accepts a decimal integer without a leading zero.
+
 ## [0.6.0]
 
 ### Added

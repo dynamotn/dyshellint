@@ -70,7 +70,7 @@ func checkUncheckedArithmetic(f *File, r *Reporter) {
 					return false
 				}
 				reported[name] = true
-				r.At(word.Pos(), "%q comes from the caller or the input, and arithmetic reads `08` as a bad octal number and `a[$(cmd)]` as a command to run; check it with a regular expression first, or write `10#$%s`",
+				reportWithDybatpho(f, r, word.Pos(), "`dybatpho::is int \"${value}\"` accepts a decimal integer without a leading zero", "%q comes from the caller or the input, and arithmetic reads `08` as a bad octal number and `a[$(cmd)]` as a command to run; check it with a regular expression first, or write `10#$%s`",
 					name, name)
 				return false
 			})
