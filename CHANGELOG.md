@@ -218,6 +218,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a destination, `install`, `ln -s`, `wget`, `curl -o`, a package manager,
   a mutating `systemctl` verb, or `chezmoi apply`.
 
+- `BSG059` warns about a deprecated command — `apt-key`, `egrep`, `fgrep`,
+  `which`, `ifconfig`, `tempfile`, `netstat` — and names its replacement:
+  a `signed-by=` keyring, `grep -E`, `grep -F`, `command -v`, `ip addr`,
+  `mktemp`, `ss`.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
