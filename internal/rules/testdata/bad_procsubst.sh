@@ -33,6 +33,7 @@ function _main {
   mapfile -t entries < <(_entries "$1")
   mapfile -t names < <(_names)
   mapfile -t found < <(_entries "$1" | sort)
+  mapfile -t found < <(_entries "$1" || true)
   printf '%s %s %s\n' "${#entries[@]}" "${#names[@]}" "${#found[@]}"
 }
 

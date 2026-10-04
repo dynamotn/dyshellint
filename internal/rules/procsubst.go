@@ -26,6 +26,9 @@ func checkFailingProducer(f *File, r *Reporter) {
 			return true
 		}
 		for _, stmt := range ps.Stmts {
+			if ignoresFailure(stmt) {
+				continue
+			}
 			for _, call := range leadingCalls(stmt) {
 				name := callName(call)
 				if name == "" || !p.CanFail(name) {
@@ -38,4 +41,26 @@ func checkFailingProducer(f *File, r *Reporter) {
 		}
 		return true
 	})
+}
+
+// ignoresFailure reports whether a statement says outright that its failure
+// does not matter: it ends in `|| true` or `|| :`.
+func ignoresFailure(stmt *syntax.Stmt) bool {
+	cmd, ok := stmt.Cmd.(*syntax.BinaryCmd)
+	if !ok || cmd.Op != syntax.OrStmt {
+		return false
+	}
+	switch callName(firstCall(cmd.Y)) {
+	case "true", ":":
+		return true
+	}
+	return false
+}
+
+// firstCall returns the simple command a statement runs, or nil.
+func firstCall(stmt *syntax.Stmt) *syntax.CallExpr {
+	if calls := leadingCalls(stmt); len(calls) > 0 {
+		return calls[0]
+	}
+	return nil
 }
