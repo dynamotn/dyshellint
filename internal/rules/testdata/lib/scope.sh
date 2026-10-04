@@ -75,3 +75,23 @@ function scope::set_setting {
   esac
   printf '%s %s\n' "${min}" "${max}"
 }
+
+#######################################
+# @description Hand the caller's variable name on to a private writer
+# @arg $1 string Name of the variable to fill
+#######################################
+function scope::fill_through {
+  local name="$1" label="through"
+  __scope_fill "${name}"
+  printf '%s\n' "${label}"
+}
+
+#######################################
+# @description Hand only a value to the private writer, under its own name
+# @arg $1 string Value to print
+#######################################
+function scope::fill_value {
+  local value="$1" result
+  __scope_fill result
+  printf '%s %s\n' "${value}" "${result}"
+}

@@ -21,6 +21,9 @@ type Project struct {
 	// runners holds the functions that run code their caller handed them, and
 	// the functions that hand their own caller's code on to one of those.
 	runners map[string]bool
+	// writers maps a function to the positions of the arguments it treats as
+	// the name of a variable to write, directly or by handing the name on.
+	writers map[string]map[int]bool
 }
 
 // dieSinks are the commands that end the shell they run in.
@@ -49,6 +52,7 @@ func Link(files []*File) *Project {
 		canDie:  map[string]bool{},
 		canFail: map[string]bool{},
 		runners: map[string]bool{},
+		writers: map[string]map[int]bool{},
 	}
 	for _, f := range files {
 		eachFunc(f, func(decl *syntax.FuncDecl) {
@@ -80,11 +84,20 @@ func (p *Project) CanFail(name string) bool { return p.canFail[name] }
 // RunsCallerCode reports whether the function runs code its caller passed.
 func (p *Project) RunsCallerCode(name string) bool { return p.runners[name] }
 
+// WritesCallerName reports whether the function writes to a variable whose
+// name its caller passed, itself or through a function it hands the name to.
+func (p *Project) WritesCallerName(name string) bool { return len(p.writers[name]) > 0 }
+
 // spread works out canDie, canFail and runners to a fixed point over the call
 // graph of every function.
 func (p *Project) spread() {
 	edges := map[string][]string{}
 	handsOn := map[string][]string{}
+	type namePass struct {
+		call *syntax.CallExpr
+		fed  map[string]int
+	}
+	passes := map[string][]namePass{}
 	for name, decl := range p.funcs {
 		fed := callerFed(decl)
 		ownCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
@@ -96,16 +109,27 @@ func (p *Project) spread() {
 			case callee == "false":
 				p.canFail[name] = true
 			}
+			if callee != "" && !argumentGuards[callee] {
+				edges[name] = append(edges[name], callee)
+			}
+		})
+		// Code run in a subshell still sees every local, so a runner is found
+		// wherever it runs the code it was handed.
+		positions := fedIndex(decl)
+		allCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
 			if runsCallerCode(call, fed) {
 				p.runners[name] = true
 			}
-			if callee != "" && !argumentGuards[callee] {
-				edges[name] = append(edges[name], callee)
-				if passesCallerCode(call, fed) {
-					handsOn[name] = append(handsOn[name], callee)
-				}
+			if callee != "" && passesCallerCode(call, fed) {
+				handsOn[name] = append(handsOn[name], callee)
+			}
+			if callee != "" {
+				passes[name] = append(passes[name], namePass{call: call, fed: positions})
 			}
 		})
+		if direct := writerParams(decl); len(direct) > 0 {
+			p.writers[name] = direct
+		}
 	}
 	for changed := true; changed; {
 		changed = false
@@ -118,6 +142,24 @@ func (p *Project) spread() {
 					p.canDie[name] = true
 					changed = true
 					break
+				}
+			}
+		}
+		for name, list := range passes {
+			for _, pass := range list {
+				for position := range p.writers[callName(pass.call)] {
+					if position < 1 || position >= len(pass.call.Args) {
+						continue
+					}
+					mine := argPosition(pass.call.Args[position], pass.fed)
+					if mine < 1 || p.writers[name][mine] {
+						continue
+					}
+					if p.writers[name] == nil {
+						p.writers[name] = map[int]bool{}
+					}
+					p.writers[name][mine] = true
+					changed = true
 				}
 			}
 		}
@@ -154,6 +196,25 @@ func ownCalls(node syntax.Node, fn func(call *syntax.CallExpr, callee string)) {
 		case *syntax.CallExpr:
 			// A command whose name is not a literal, such as `"$@"`, is passed
 			// with an empty name: the rules that look for caller code need it.
+			if len(n.Args) > 0 {
+				fn(n, wordLiteral(n.Args[0]))
+			}
+		}
+		return true
+	})
+}
+
+// allCalls walks every simple command under a node, subshells included, with
+// the literal name of each, or the empty string for a name built by expansion.
+func allCalls(node syntax.Node, fn func(call *syntax.CallExpr, callee string)) {
+	if node == nil {
+		return
+	}
+	syntax.Walk(node, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.FuncDecl:
+			return n == node
+		case *syntax.CallExpr:
 			if len(n.Args) > 0 {
 				fn(n, wordLiteral(n.Args[0]))
 			}

@@ -61,3 +61,13 @@ function callercode::own_command {
   local -a command=(printf '%s\n' ok)
   "${command[@]}"
 }
+
+#######################################
+# @description Run the command in a subshell, which still sees its locals
+# @arg $@ string Command to run
+#######################################
+function callercode::isolated {
+  local attempt=1
+  ("$@")
+  printf '%s\n' "${attempt}"
+}

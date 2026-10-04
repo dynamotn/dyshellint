@@ -22,17 +22,16 @@ func init() {
 	)
 }
 
-// writesCallerName reports whether a function writes to a variable whose name
-// its caller chose: a nameref bound to an expansion, `printf -v`, `read`,
-// `mapfile` or `readarray` into a name that is not a literal. A name a `case`
-// arm has already pinned to literal words is the function's own choice.
-func writesCallerName(decl *syntax.FuncDecl) bool {
+// writerParams returns the positions of the arguments a function treats as
+// the name of a variable to write: a nameref bound to `$N`, or `printf -v`,
+// `read`, `mapfile` or `readarray` into it. Position 0 stands for a name the
+// function chose from an expansion it cannot trace back to one argument. A
+// name a `case` arm has already pinned to literal words is the function's own.
+func writerParams(decl *syntax.FuncDecl) map[int]bool {
+	out := map[int]bool{}
+	fed := fedIndex(decl)
 	var up map[syntax.Node]syntax.Node
-	found := false
 	syntax.Walk(decl.Body, func(node syntax.Node) bool {
-		if found {
-			return false
-		}
 		switch n := node.(type) {
 		case *syntax.FuncDecl:
 			return false
@@ -42,7 +41,7 @@ func writesCallerName(decl *syntax.FuncDecl) bool {
 			}
 			for _, arg := range n.Args {
 				if arg.Name != nil && arg.Value != nil && wordLiteral(arg.Value) == "" {
-					found = true
+					out[argPosition(arg.Value, fed)] = true
 				}
 			}
 		case *syntax.CallExpr:
@@ -53,11 +52,65 @@ func writesCallerName(decl *syntax.FuncDecl) bool {
 			if up == nil {
 				up = parents(decl.Body)
 			}
-			found = !pinnedByCase(n, target, up)
+			if !pinnedByCase(n, target, up) {
+				out[paramPosition(target, fed)] = true
+			}
 		}
 		return true
 	})
-	return found
+	return out
+}
+
+// fedIndex maps the variables a function binds to one argument to that
+// argument's position: the names `dybatpho::expect_args` binds in order, and
+// assignments of a single `$N`.
+func fedIndex(decl *syntax.FuncDecl) map[string]int {
+	out := map[string]int{}
+	syntax.Walk(decl.Body, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.FuncDecl:
+			return false
+		case *syntax.Assign:
+			if n.Name == nil {
+				return true
+			}
+			if pe := wordParam(n.Value); pe != nil && pe.Param != nil && isPositionalDigit(pe) {
+				out[n.Name.Value] = int(pe.Param.Value[0] - '0')
+			}
+		case *syntax.CallExpr:
+			if callName(n) != "dybatpho::expect_args" {
+				return true
+			}
+			for i, arg := range n.Args[1:] {
+				name := wordLiteral(arg)
+				if name == "--" {
+					break
+				}
+				out[name] = i + 1
+			}
+		}
+		return true
+	})
+	return out
+}
+
+// argPosition returns the argument a word names a variable through, or 0.
+func argPosition(word *syntax.Word, fed map[string]int) int {
+	pe := wordParam(word)
+	if pe == nil {
+		return 0
+	}
+	return paramPosition(pe, fed)
+}
+
+func paramPosition(pe *syntax.ParamExp, fed map[string]int) int {
+	if pe == nil || pe.Param == nil {
+		return 0
+	}
+	if isPositionalDigit(pe) {
+		return int(pe.Param.Value[0] - '0')
+	}
+	return fed[pe.Param.Value]
 }
 
 // callerNamedTarget returns the expansion a builtin stores into, when the
@@ -108,7 +161,7 @@ func pinnedByCase(call *syntax.CallExpr, target *syntax.ParamExp, up map[syntax.
 
 func checkCallerNamedLocals(f *File, r *Reporter) {
 	eachFunc(f, func(decl *syntax.FuncDecl) {
-		if !isPublicFunc(decl) || !writesCallerName(decl) {
+		if !isPublicFunc(decl) || !f.project().WritesCallerName(decl.Name.Value) {
 			return
 		}
 		names, at := funcLocals(decl)
