@@ -40,3 +40,12 @@ function libstate::lenient {
   IFS="${old_ifs}"
   set -e
 }
+
+#######################################
+# @description Trace the script, and list the shell options
+# @noargs
+#######################################
+function libstate::trace {
+  set -x
+  shopt -s >&2
+}

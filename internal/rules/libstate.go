@@ -19,8 +19,9 @@ func init() {
 }
 
 // scopedOptions are the `set` letters that change how the caller's own code
-// runs.
-const scopedOptions = "eCfuxa"
+// runs. `-x` and `-v` are tracing, which the trace helpers turn on for the
+// whole script on purpose.
+const scopedOptions = "eCfua"
 
 func checkLibraryShellState(f *File, r *Reporter) {
 	if f.Role != RoleLibrary {
@@ -65,7 +66,8 @@ func checkLibraryShellState(f *File, r *Reporter) {
 				if restored["shopt"] || strings.Contains(text, "shopt -p") || hasFlag(call, 'q') || hasFlag(call, 'p') {
 					return
 				}
-				if hasFlag(call, 's') || hasFlag(call, 'u') {
+				// `shopt -s` with no name lists the options; it changes nothing.
+				if (hasFlag(call, 's') || hasFlag(call, 'u')) && hasOperand(call) {
 					report(call, "`shopt`")
 				}
 			case "umask":
@@ -161,4 +163,14 @@ func restoredState(decl *syntax.FuncDecl) map[string]bool {
 		return true
 	})
 	return out
+}
+
+// hasOperand reports whether a call has a word that is not an option.
+func hasOperand(call *syntax.CallExpr) bool {
+	for _, arg := range call.Args[1:] {
+		if lit := wordLiteral(arg); !strings.HasPrefix(lit, "-") {
+			return true
+		}
+	}
+	return false
 }
