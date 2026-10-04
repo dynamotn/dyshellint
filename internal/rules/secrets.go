@@ -26,7 +26,11 @@ var secretName = regexp.MustCompile(`(?i)(token|secret|passw(or)?d|api_?key|webh
 
 // notSecretName matches the names that only point at a secret, such as the
 // file it lives in or the variable it is read from.
-var notSecretName = regexp.MustCompile(`(?i)(_|^)(file|path|dir|name|var|env|ref|url_var|header_name|count|len|length|type|kind|source|mode|id)$`)
+var notSecretName = regexp.MustCompile(`(?i)(_|^)(file|path|dir|directory|name|vars?|env|ref|header_name|count|len|length|type|kind|source|mode|id|placeholder|prompt|staging|tokens)$`)
+
+// strongSecretName matches a name that holds a credential whatever context it
+// is printed in. A bare `token` is too often a parser's token to count there.
+var strongSecretName = regexp.MustCompile(`(?i:secret|passw(or)?d|api_?key|webhook|credential|(api|auth|access|bearer|refresh|session|bot|github|gitlab|forge|private|oauth)_?token)|^[A-Z0-9_]*TOKEN$`)
 
 // httpClients put their arguments on a command line every user of the machine
 // can read through `ps`.
@@ -97,7 +101,10 @@ func secretIn(word *syntax.Word, command string) string {
 				return false
 			}
 			v := n.Param.Value
-			if secretName.MatchString(v) && !notSecretName.MatchString(v) {
+			if !secretName.MatchString(v) || notSecretName.MatchString(v) {
+				return false
+			}
+			if httpClients[command] || strongSecretName.MatchString(v) {
 				found = v
 			}
 			return false

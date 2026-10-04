@@ -21,4 +21,7 @@ function _call {
   local masked
   masked="$(printf '%s' "${API_TOKEN}" | cut -c1-4)"
   echo "${masked}"
+  local token="v1" input_tokens=3
+  printf 'parsed %s, used %s\n' "${token}" "${input_tokens}"
+  echo "placeholder ${SECRET_PLACEHOLDER}"
 }
