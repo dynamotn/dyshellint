@@ -121,6 +121,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dybatpho::secret_register`. The substitution runs it in a subshell, so a
   cache it fills or a secret it registers is gone when the subshell ends.
 
+- `BSG085` warns about `for ((i = 0; i < ${#a[@]}; i++))` over an array the
+  function did not build itself — a nameref, or one it never declared local.
+  A caller's array can have gaps in its indexes, and counting to its length
+  then reads elements that do not exist; `"${!a[@]}"` walks the real ones.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
