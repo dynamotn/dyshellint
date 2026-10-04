@@ -74,6 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   given `-`; without it the assertion ignores the input and passes on any
   non-empty output.
 
+- `BSG080` warns about a variable spliced into literal text that `eval`,
+  `dybatpho::dry_run` with a single argument, or `bash -c`/`sh -c` will parse
+  as code: a space splits the value, and `$(...)` or `;` in it runs. A value
+  quoted with `printf %q` or `${x@Q}`, a word that is a single expansion, and
+  `dybatpho::dry_run` given separate words are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
