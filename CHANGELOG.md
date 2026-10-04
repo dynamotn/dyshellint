@@ -160,6 +160,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sourced it, so `dirname "$0"` finds the wrong directory. The main guard
   `[[ "${BASH_SOURCE[0]}" == "$0" ]]` is left alone.
 
+- `BSG090` warns about `exit` in a function of a library file: it ends the
+  whole script that sourced the library, skipping its cleanup and its own error
+  handling. A function whose job is to stop (`die`, `fatal`, `abort`), a signal
+  or exit handler, a function the file installs with `trap`, and `exit` inside
+  a subshell are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
