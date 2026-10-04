@@ -46,6 +46,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   status of a process substitution, so a failure looks like empty output.
   External commands such as `find` are left alone.
 
+- `BSG049` warns, in a file that uses dybatpho, about `"${a[@]}"` or
+  `"${a[*]}"` of a local array declared empty that may still be empty where it
+  is expanded: Bash 4.3, which dybatpho supports, stops a `set -u` script on
+  it. An array counts as filled only after an unconditional assignment of at
+  least one element that is not itself a list expansion; filling it inside a
+  loop or a branch, with `mapfile`, or from `"$@"` does not. The guarded form
+  `${a[@]+"${a[@]}"}` and `${#a[@]}` are left alone.
+
 ## [0.3.2]
 
 ### Added
