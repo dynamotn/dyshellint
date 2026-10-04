@@ -88,6 +88,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `$(...)`, or only measured with `${#x}` is left alone, as are names that only
   point at a secret such as `TOKEN_FILE`.
 
+- `BSG082` reports a path built from `$$`, `$BASHPID`, `$RANDOM` or `$PPID`
+  and created with `>`, `>>`, `touch` or `mkdir -p`, wherever it lives: another
+  user can plant a link at the name in advance, and those all follow it or
+  reuse what is there. `mkdir` without `-p`, a function that turns on `set -C`,
+  and paths under `/tmp`, which `BSG045` reports, are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
