@@ -166,6 +166,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or exit handler, a function the file installs with `trap`, and `exit` inside
   a subshell are left alone.
 
+- `BSG091` warns about `cd` or `pushd` in a library function outside a
+  `( ... )` subshell when the function never goes back: it moves the whole
+  script that sourced the library. A `popd`, `cd -`, `cd "$OLDPWD"`, or a `cd`
+  to a variable saved from `$PWD` or `$(pwd)` counts as going back.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
