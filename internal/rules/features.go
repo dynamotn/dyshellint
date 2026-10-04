@@ -69,7 +69,25 @@ func init() {
 			Doc:      "Create temporary files with `dybatpho::create_temp`, which registers its own cleanup",
 			Check:    checkMktemp,
 		},
+		Rule{
+			Code:     "BSG124",
+			Section:  sectionForLoops,
+			Severity: lint.SeverityWarning,
+			Doc:      "Generate a sequence with `{1..5}` or `for ((i = 0; i < n; i++))`, not `seq`",
+			Check:    checkSeq,
+		},
 	)
+}
+
+// checkSeq reports a call to `seq`, an external process for what brace
+// expansion and an arithmetic `for` do in the shell.
+func checkSeq(f *File, r *Reporter) {
+	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+		if call, ok := node.(*syntax.CallExpr); ok && callName(call) == "seq" {
+			r.At(call.Pos(), "`seq` starts a process for a sequence the shell can make; write `{1..5}` for a fixed range, or `for ((i = start; i <= end; i++))` when a bound is a variable")
+		}
+		return true
+	})
 }
 
 func checkEval(f *File, r *Reporter) {

@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BSG123` warns about a `# shellcheck disable=` directive with no reason,
   neither after it on the same line nor in a comment right above it.
 
+- `BSG124` warns about a call to `seq`: `{1..5}` makes a fixed range, and
+  `for ((i = start; i <= end; i++))` one whose bounds are variables, without a
+  process.
+
 ## [0.5.0]
 
 ### Added
