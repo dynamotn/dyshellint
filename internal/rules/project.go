@@ -24,6 +24,10 @@ type Project struct {
 	// writers maps a function to the positions of the arguments it treats as
 	// the name of a variable to write, directly or by handing the name on.
 	writers map[string]map[int]bool
+	// assigned holds every variable name any file of the run sets.
+	assigned map[string]bool
+	// files are the files of the run.
+	files []*File
 }
 
 // dieSinks are the commands that end the shell they run in.
@@ -48,11 +52,13 @@ var argumentGuards = map[string]bool{
 // them, so that a call into another file is followed to its definition.
 func Link(files []*File) *Project {
 	p := &Project{
-		funcs:   map[string]*syntax.FuncDecl{},
-		canDie:  map[string]bool{},
-		canFail: map[string]bool{},
-		runners: map[string]bool{},
-		writers: map[string]map[int]bool{},
+		funcs:    map[string]*syntax.FuncDecl{},
+		canDie:   map[string]bool{},
+		canFail:  map[string]bool{},
+		runners:  map[string]bool{},
+		writers:  map[string]map[int]bool{},
+		assigned: map[string]bool{},
+		files:    files,
 	}
 	for _, f := range files {
 		eachFunc(f, func(decl *syntax.FuncDecl) {
@@ -60,6 +66,9 @@ func Link(files []*File) *Project {
 		})
 	}
 	p.spread()
+	for _, f := range files {
+		collectAssigned(f.Syntax, p.assigned)
+	}
 	for _, f := range files {
 		f.Project = p
 	}
@@ -478,4 +487,44 @@ func isPrivateName(name string) bool {
 // name does not start with an underscore.
 func isPublicFunc(decl *syntax.FuncDecl) bool {
 	return !strings.HasPrefix(decl.Name.Value, "_")
+}
+
+// Assigned reports whether any file of the run sets the variable.
+func (p *Project) Assigned(name string) bool { return p.assigned[name] }
+
+// Files returns the files of the run.
+func (p *Project) Files() []*File { return p.files }
+
+// collectAssigned adds every variable a program sets to out: assignments,
+// declarations, loop variables, the targets of `read`, `mapfile`, `printf -v`
+// and `getopts`, `${X:=default}`, and the variables a dybatpho option spec
+// declares.
+func collectAssigned(root syntax.Node, out map[string]bool) {
+	syntax.Walk(root, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.Assign:
+			if n.Name != nil {
+				out[n.Name.Value] = true
+			}
+		case *syntax.ForClause:
+			if iter, ok := n.Loop.(*syntax.WordIter); ok && iter.Name != nil {
+				out[iter.Name.Value] = true
+			}
+		case *syntax.ParamExp:
+			if n.Param != nil && n.Exp != nil {
+				switch n.Exp.Op {
+				case syntax.AssignUnset, syntax.AssignUnsetOrNull:
+					out[n.Param.Value] = true
+				}
+			}
+		case *syntax.CallExpr:
+			builtinTargets(n, func(name string, _ syntax.Pos) { out[name] = true })
+			if name := callName(n); strings.HasPrefix(name, "dybatpho::opts::") && len(n.Args) > 2 {
+				if v := wordLiteral(n.Args[2]); isVarName(v) {
+					out[v] = true
+				}
+			}
+		}
+		return true
+	})
 }

@@ -108,6 +108,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   traps-save helper, or `dybatpho::trap`) to put them back is left alone, as
   are `trap -p`, `trap -l` and other signals.
 
+- `BSG073` warns, in a file under `set -u` or using dybatpho, about a bare
+  `${NAME}` of an UPPERCASE variable that no file of the run sets: it comes
+  from the environment, and `set -u` stops the script when it is missing. A
+  default (`${NAME:-}`, `${NAME-x}`), `${NAME:=x}`, the variables Bash sets
+  itself, `HOME`, `PATH`, and the variables a dybatpho option spec declares are
+  left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
