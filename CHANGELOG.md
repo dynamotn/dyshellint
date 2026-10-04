@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `BSG099` warns about an entrypoint that uses a feature newer than Bash 4.2 —
+  a nameref, `local -`, `mapfile -d`, `wait -n`, `inherit_errexit` or
+  `${var@Q}` — and never reads `BASH_VERSINFO`. On the Bash 3.2 that macOS
+  ships, such a script fails later with a confusing error instead of a message
+  naming the version. A script that sources dybatpho is left alone, as the
+  library checks the version itself.
+
+- `BSG100` warns about `echo -e`, `echo -n`, and an `echo` whose first argument
+  starts with a variable or a command substitution: a value of `-n` then prints
+  nothing, and `-e` turns the backslashes of the data into escapes. An `echo`
+  of a fixed message is left alone.
+
+- `BSG101` reports a here document opened with `<<-`, which strips leading tabs
+  only, and `BSG102` warns about one whose delimiter is unquoted, that expands
+  nothing, and that escapes `$` or a backtick by hand instead of quoting the
+  delimiter.
+
+- `BSG103` reports `name["key"]=value` with a literal string key on a name that
+  no file of the run declares with `-A`. Bash then reads the key as arithmetic
+  and stores every such key at index 0. Namerefs are left alone, and so is a
+  key that expands a variable, which may hold a number.
+
+- `BSG104` warns about an entrypoint that stops on error and runs a
+  substitution of several commands, or of a function of the run, without
+  `shopt -s inherit_errexit`: inside `$(...)` errexit is off, so the
+  substitution carries on past a failure.
+
+- `BSG105` reports `exit` or `return` with a literal status outside 0–255,
+  which is taken modulo 256, or with 126 or 127, which the shell uses for "not
+  executable" and "not found".
+
+- `BSG106` warns about a cleanup handler — one that runs `rm`, or a function
+  whose name says it cleans — installed on `INT` or `TERM` without an `exit`.
+  It replaces the default action, so the script carries on after Ctrl-C and
+  exits 0. A handler named by a function of the run is judged by its body.
+
+- `BSG107` warns about a `curl` call with no `--max-time`, outside `timeout`.
+  It waits as long as the server keeps the connection open. Options kept in an
+  array or a `--config` file may carry the limit, so such calls are left alone.
+
+- `BSG108` warns about `$(cat file)`, which `$(< file)` does without a process,
+  and `BSG109` about a `# shellcheck disable=SC1091` directive, which hides the
+  sourced file from ShellCheck where `# shellcheck source=` would name it.
+
 ### Changed
 
 - The `.shellcheckrc` of this repository keeps SC2155 on, as the guide now
@@ -32,6 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG033` reports its heading as `Formatting > Function Declaration`, where
   the guide keeps it, instead of a chapter the section never belonged to.
+
+- A message with a literal percent sign is printed as written: the advice of
+  `BSG056` read `-w '%%{http_code}'` with a doubled sign.
 
 ## [0.4.0]
 
