@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG118` also points a script that loads dybatpho at `dybatpho::run_with_timeout`, which bounds the call and returns 124 on a timeout.
 
+- `BSG081` also points a script that loads dybatpho at `dybatpho::curl_auth_bearer` and `dybatpho::secret_register`, which keep a token off the command line and out of the logs.
+
 ## [0.6.0]
 
 ### Added

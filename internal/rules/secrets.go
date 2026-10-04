@@ -76,7 +76,7 @@ func checkSecretExposure(f *File, r *Reporter) {
 				if !httpClients[name] {
 					verb = "prints it"
 				}
-				r.At(arg.Pos(), "%q looks like a credential and `%s` %s; pass it on stdin or through a file only the user can read",
+				reportWithDybatpho(f, r, arg.Pos(), "`dybatpho::curl_auth_bearer <url> <token>` sends a token without putting it on a command line, and `dybatpho::secret_register` masks it in what dybatpho logs", "%q looks like a credential and `%s` %s; pass it on stdin or through a file only the user can read",
 					secret, name, verb)
 				return true
 			}
