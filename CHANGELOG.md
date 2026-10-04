@@ -156,6 +156,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A step used as a condition, after `!`, or in an `&&`/`||` list, `((++x))`
   and `x=$((x + 1))` are left alone.
 
+- `BSG039` reports `$0` in a library file: sourced, `$0` names the script that
+  sourced it, so `dirname "$0"` finds the wrong directory. The main guard
+  `[[ "${BASH_SOURCE[0]}" == "$0" ]]` is left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
