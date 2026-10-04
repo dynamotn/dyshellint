@@ -62,6 +62,10 @@ func checkLibraryTraps(f *File, r *Reporter) {
 		if signal == "" {
 			return
 		}
+		if inSubshell(call, up) {
+			// A subshell's handlers end with it; the caller's are untouched.
+			return
+		}
 		if decl := enclosingFunc(call, up); decl != nil && saves[decl] {
 			return
 		}
@@ -72,4 +76,18 @@ func checkLibraryTraps(f *File, r *Reporter) {
 		r.At(call.Pos(), "a library that %s the %s handler throws away the one the calling script installed; compose with `dybatpho::trap`, or save it with `trap -p` and put it back",
 			what, signal)
 	})
+}
+
+// inSubshell reports whether a node runs in a subshell of the function or file
+// it sits in: `( ... )`, `$(...)` or `<(...)`.
+func inSubshell(node syntax.Node, up map[syntax.Node]syntax.Node) bool {
+	for n := up[node]; n != nil; n = up[n] {
+		switch n.(type) {
+		case *syntax.Subshell, *syntax.CmdSubst, *syntax.ProcSubst:
+			return true
+		case *syntax.FuncDecl:
+			return false
+		}
+	}
+	return false
 }

@@ -24,3 +24,14 @@ function traps::careful {
   trap - INT
   eval "${saved}"
 }
+
+#######################################
+# @description Run a job in the background with handlers of its own
+# @noargs
+#######################################
+function traps::background {
+  (
+    trap 'exit 143' TERM
+    sleep 1
+  ) &
+}
