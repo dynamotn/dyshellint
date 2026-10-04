@@ -98,7 +98,7 @@ func checkWaitInLoop(f *File, r *Reporter) {
 		default:
 			return true
 		}
-		r.At(stmt.Pos(), "under `set -e` the first job that failed stops this loop, and the others are neither waited for nor reported; write `wait \"${pid}\" || failed=$((failed + 1))` and check the count after the loop")
+		reportWithDybatpho(f, r, stmt.Pos(), "`dybatpho::background_run <name> <command>` and `dybatpho::wait_all` keep every pid, wait for each job and count the failures", "under `set -e` the first job that failed stops this loop, and the others are neither waited for nor reported; write `wait \"${pid}\" || failed=$((failed + 1))` and check the count after the loop")
 		return true
 	})
 }

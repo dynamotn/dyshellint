@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG098` also points a script that loads dybatpho at `dybatpho::confirm`, which asks only on a terminal.
 
+- `BSG112` also points a script that loads dybatpho at `dybatpho::background_run` and `dybatpho::wait_all`, which wait for every job and count the failures.
+
 ## [0.6.0]
 
 ### Added
