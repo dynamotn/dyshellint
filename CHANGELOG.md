@@ -202,6 +202,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   last line that has no newline, so the loop drops it. A here document, a here
   string, and `read -d` are left alone.
 
+- `BSG058` reports a `curl` or `wget` download piped into `bash`, `sh` or
+  `source /dev/stdin`, or run with `bash <(curl ...)`: whatever the server
+  sends runs, and only part of it when the connection drops. Piping into a
+  program that reads data, such as `jq`, is left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
