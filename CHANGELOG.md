@@ -132,6 +132,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   document. A function that escapes its values (an escaper, `jq`, `yq` or a
   JSON helper) and numbers printed with `%d` are left alone.
 
+- `BSG087` warns about `(( ))` or `$(( ))` reading a positional parameter, a
+  variable filled from one (or bound by `dybatpho::expect_args`), or a `read`
+  target, when the function never checks it: arithmetic reads `08` as a bad
+  octal number and runs the `$(cmd)` in `a[$(cmd)]`. A `=~` test, a `case` on
+  the variable, a validating call (`dybatpho::is int`, a `validate` or
+  `expect_int` helper), and a `10#` prefix count as checks.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
