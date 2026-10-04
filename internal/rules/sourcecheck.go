@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"strings"
+
 	"mvdan.cc/sh/v3/syntax"
 
 	"gitlab.com/dynamo-tools/dyshellint/internal/lint"
@@ -21,6 +23,7 @@ func checkUncheckedSource(f *File, r *Reporter) {
 		return
 	}
 	tested := fileTestedVars(f)
+	own := ownDirVars(f)
 	up := parents(f.Syntax)
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
@@ -35,7 +38,7 @@ func checkUncheckedSource(f *File, r *Reporter) {
 			return true
 		}
 		path := call.Args[1]
-		if !hasExpansion(path) || statusUsed(stmt, up) || anyVarIn(path, tested) {
+		if !hasExpansion(path) || statusUsed(stmt, up) || anyVarIn(path, tested) || anyVarIn(path, own) {
 			return true
 		}
 		r.At(path.Pos(), "%s may not exist, and a failed `.` only prints an error before the script runs on without the library; test it with `[[ -r ... ]]` first, or add `|| exit 1`",
@@ -88,4 +91,22 @@ func anyVarIn(word *syntax.Word, vars map[string]bool) bool {
 		return !found
 	})
 	return found
+}
+
+// ownDirVars returns the variables a file fills with its own directory, from
+// `BASH_SOURCE` or `$0`: a library found next to the script ships with it.
+func ownDirVars(f *File) map[string]bool {
+	out := map[string]bool{}
+	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+		assign, ok := node.(*syntax.Assign)
+		if !ok || assign.Name == nil || assign.Value == nil {
+			return true
+		}
+		src := wordSource(assign.Value)
+		if strings.Contains(src, "BASH_SOURCE") || strings.Contains(src, "$0") {
+			out[assign.Name.Value] = true
+		}
+		return true
+	})
+	return out
 }
