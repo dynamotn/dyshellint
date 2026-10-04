@@ -80,6 +80,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   quoted with `printf %q` or `${x@Q}`, a word that is a single expansion, and
   `dybatpho::dry_run` given separate words are left alone.
 
+- `BSG081` warns about a credential — a variable named like `TOKEN`, `SECRET`,
+  `PASSWORD`, `API_KEY` or `WEBHOOK`, or an `Authorization:` header built from
+  a variable — in the arguments of `curl`, `wget` or another HTTP client, where
+  `ps` shows it to every user, or printed by `echo`, `printf` or a dybatpho
+  logger. A value piped to another command, written to a file, captured by
+  `$(...)`, or only measured with `${#x}` is left alone, as are names that only
+  point at a secret such as `TOKEN_FILE`.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
