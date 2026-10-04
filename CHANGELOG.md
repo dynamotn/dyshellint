@@ -152,6 +152,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when no file of the run clears `GIT_DIR` and its kin, so that run from a git
   hook every git call lands in the repository being committed to.
 
+- `BSG088` reports `((x++))`, `((x--))` or a comma list ending in one, run as
+  a statement in a file under `set -e` or using dybatpho: the expression's
+  value is the old one, so the step fails when it was 0 and the script ends.
+  A step used as a condition, after `!`, or in an `&&`/`||` list, `((++x))`
+  and `x=$((x + 1))` are left alone.
+
+- `BSG039` reports `$0` in a library file: sourced, `$0` names the script that
+  sourced it, so `dirname "$0"` finds the wrong directory. The main guard
+  `[[ "${BASH_SOURCE[0]}" == "$0" ]]` is left alone.
+
+- `BSG090` warns about `exit` in a function of a library file: it ends the
+  whole script that sourced the library, skipping its cleanup and its own error
+  handling. A function whose job is to stop (`die`, `fatal`, `abort`), a signal
+  or exit handler, a function the file installs with `trap`, and `exit` inside
+  a subshell are left alone.
+
+- `BSG091` warns about `cd` or `pushd` in a library function outside a
+  `( ... )` subshell when the function never goes back: it moves the whole
+  script that sourced the library. A `popd`, `cd -`, `cd "$OLDPWD"`, or a `cd`
+  to a variable saved from `$PWD` or `$(pwd)` counts as going back.
+
+- `BSG092` warns about a library function that changes the caller's shell
+  state outside a subshell: `set` with `-e`, `-C`, `-f`, `-u`, `-x`, `-a` or
+  `-o`, `shopt -s`/`-u`, a bare `IFS=` statement, or `umask` with a mask. A
+  function with `local -`, `local IFS`, a saved `$-`, `shopt -p` or
+  `$(umask)` to restore from, an `IFS=` in front of one command, and
+  `set -- args` are left alone.
+
+- `BSG057` warns about `rm`, `mv`, `cp`, `ln`, `touch`, `mkdir`, `cat`, `ls`,
+  `chmod`, `chown`, `grep` or `sed` given an operand that is one scalar
+  expansion, such as `"${path}"`, with no `--` before it: a value starting
+  with `-` is read as an option. A word with a literal prefix such as
+  `"./${path}"`, the mode or owner of `chmod`/`chown`, the value of an option,
+  and `grep -e`/`sed -e` patterns are left alone.
+
+- `BSG089` warns about `rm -r`, `chmod -R`, `chown -R`, `chgrp -R` or
+  `find -delete` on a path built from a variable the function never checks:
+  when it is empty, `rm -rf "${dir}/"` reaches `/`. A `[[ ]]` test of the
+  variable, `${dir:?}` in the same word, a variable filled by `mktemp` or a
+  temporary-file helper, and one passed to a path-safety check are left alone.
+
+- `BSG093` warns about a `for` loop over a glob whose body never checks that
+  the loop variable exists (`-e`, `-f`, `-d`, `-L`, `-r`, `-s`, or
+  `dybatpho::is`): without `nullglob`, a glob matching nothing is the loop's
+  only word, and the body runs once on a path that does not exist. A file that
+  turns on `shopt -s nullglob` or `failglob` is left alone.
+
+- `BSG094` warns about `while read` reading a file, a process substitution or
+  a pipe without `|| [[ -n "${line}" ]]` in its condition: `read` fails on a
+  last line that has no newline, so the loop drops it. A here document, a here
+  string, and `read -d` are left alone.
+
+- `BSG058` reports a `curl` or `wget` download piped into `bash`, `sh` or
+  `source /dev/stdin`, or run with `bash <(curl ...)`: whatever the server
+  sends runs, and only part of it when the connection drops. Piping into a
+  program that reads data, such as `jq`, is left alone.
+
+- `BSG056` warns about `curl` without `-f`, `--fail` or `--fail-with-body`:
+  it exits 0 on a 404 or a 500 and hands back the error page as if it were the
+  answer. A call that asks for `-w '%{http_code}'` to check the status itself
+  is left alone.
+
+- `BSG095` warns, in a file that offers a dry run (it mentions `DRY_RUN` or
+  `dybatpho::dry_run`), about a function that changes something without
+  checking `DRY_RUN` or going through `dybatpho::dry_run`: `rm`, `mv`, `cp` to
+  a destination, `install`, `ln -s`, `wget`, `curl -o`, a package manager,
+  a mutating `systemctl` verb, or `chezmoi apply`.
+
+- `BSG059` warns about a deprecated command — `apt-key`, `egrep`, `fgrep`,
+  `which`, `ifconfig`, `tempfile`, `netstat` — and names its replacement:
+  a `signed-by=` keyring, `grep -E`, `grep -F`, `command -v`, `ip addr`,
+  `mktemp`, `ss`.
+
+- `BSG096` warns, in an entrypoint, about `.` or `source` of a path built from
+  a variable or `$(...)` that the file never tests with `-e`, `-f`, `-r` or
+  `-s`, when the status of the `.` is not read: without `set -e` a missing
+  library only prints an error, and the script runs on without it.
+
+- `BSG097` warns about `[[ a < b ]]`, `[[ a > b ]]` or an arithmetic `<`,
+  `>`, `<=`, `>=` on a variable named like a version, or on a literal such as
+  `1.10`: as text `1.10` sorts before `1.9`, and arithmetic stops at the first
+  dot. An array element such as `BASH_VERSINFO[0]`, `-lt` on a plain count, and
+  `==` are left alone.
+
+- `BSG098` warns about `read` that asks the user — no redirection, no `-u`,
+  not reading a loop's or a pipeline's input — with no `-t` timeout, in a
+  function or script that never checks for a terminal (`[[ -t 0 ]]`,
+  `is_tty`, `is_interactive`): in CI, cron or a pipe it waits forever.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is

@@ -5,7 +5,7 @@
 #   script. Nothing in between runs when the file is sourced.
 readonly SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
 # shellcheck source=/dev/null
-. "${SCRIPT_DIR}/lib/dybatpho/init.sh" --modules cli
+. "${SCRIPT_DIR}/lib/dybatpho/init.sh" --modules cli || exit 1
 dybatpho::register_common_handlers
 
 #######################################
