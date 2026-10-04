@@ -94,6 +94,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reuse what is there. `mkdir` without `-p`, a function that turns on `set -C`,
   and paths under `/tmp`, which `BSG045` reports, are left alone.
 
+- `BSG083` warns about an option only the GNU tools accept — `date -d`,
+  `sed -i` without a suffix, `readlink -f`, `stat -c`, `find -printf`,
+  `grep -P`, `xargs -r`, `mktemp --suffix`, `sort -V`, `base64 -w`,
+  `cp --reflink` and their long forms, short options inside a cluster too —
+  which fails on macOS, the BSDs and BusyBox. A function that probes the
+  flavour first (a `--version` call, `uname`, or a name such as `gnu`, `bsd`
+  or `busybox`) and a file that declares itself Linux-only are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
