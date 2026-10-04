@@ -22,8 +22,9 @@ func checkCallerCodeLocals(f *File, r *Reporter) {
 		// The last place the function runs its caller's code: a local declared
 		// after it can no longer be reached by that code.
 		var last syntax.Pos
+		fed := callerFed(decl)
 		ownCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
-			if runsCallerCode(call) || (callee != "" && p.RunsCallerCode(callee) && passesCallerCode(call)) {
+			if runsCallerCode(call, fed) || (callee != "" && p.RunsCallerCode(callee) && passesCallerCode(call, fed)) {
 				if call.Pos().After(last) {
 					last = call.Pos()
 				}

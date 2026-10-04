@@ -52,3 +52,12 @@ function callercode::show {
   local value="$1"
   printf '%s\n' "${value}"
 }
+
+#######################################
+# @description Run a command line it builds itself, which no caller passed
+# @noargs
+#######################################
+function callercode::own_command {
+  local -a command=(printf '%s\n' ok)
+  "${command[@]}"
+}

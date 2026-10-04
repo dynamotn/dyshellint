@@ -86,6 +86,7 @@ func (p *Project) spread() {
 	edges := map[string][]string{}
 	handsOn := map[string][]string{}
 	for name, decl := range p.funcs {
+		fed := callerFed(decl)
 		ownCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
 			switch {
 			case dieSinks[callee] && !argumentGuards[name]:
@@ -95,12 +96,12 @@ func (p *Project) spread() {
 			case callee == "false":
 				p.canFail[name] = true
 			}
-			if runsCallerCode(call) {
+			if runsCallerCode(call, fed) {
 				p.runners[name] = true
 			}
 			if callee != "" && !argumentGuards[callee] {
 				edges[name] = append(edges[name], callee)
-				if passesCallerCode(call) {
+				if passesCallerCode(call, fed) {
 					handsOn[name] = append(handsOn[name], callee)
 				}
 			}
@@ -180,17 +181,19 @@ var codeVarPattern = map[string]bool{
 }
 
 // isCodeParam reports whether an expansion stands for code the caller passed:
-// the positional parameters, or a variable named like `command` or `handler`.
-func isCodeParam(pe *syntax.ParamExp) bool {
+// the positional parameters, or a variable named like `command` or `handler`
+// that the function filled from them. A command line the function builds for
+// itself, such as `command=(sendmail -t)`, is its own code.
+func isCodeParam(pe *syntax.ParamExp, fed map[string]bool) bool {
 	if pe == nil || pe.Param == nil || pe.Length || pe.Width || pe.Excl {
 		return false
 	}
 	name := pe.Param.Value
-	switch {
-	case name == "@" || name == "*":
+	if isPositionalParam(name) {
 		return true
-	case len(name) == 1 && name[0] >= '1' && name[0] <= '9':
-		return true
+	}
+	if !fed[name] {
+		return false
 	}
 	lower := strings.ToLower(strings.TrimLeft(name, "_"))
 	for _, part := range strings.Split(lower, "_") {
@@ -199,6 +202,64 @@ func isCodeParam(pe *syntax.ParamExp) bool {
 		}
 	}
 	return false
+}
+
+// isPositionalParam reports whether a parameter name is `@`, `*` or a digit.
+func isPositionalParam(name string) bool {
+	return name == "@" || name == "*" || len(name) == 1 && name[0] >= '1' && name[0] <= '9'
+}
+
+// callerFed returns the variables a function fills from its arguments: those
+// assigned a value that expands a positional parameter, and those
+// `dybatpho::expect_args` binds.
+func callerFed(decl *syntax.FuncDecl) map[string]bool {
+	fed := map[string]bool{}
+	syntax.Walk(decl.Body, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.FuncDecl:
+			return false
+		case *syntax.Assign:
+			if n.Name != nil && (expandsPositional(n.Value) || n.Array != nil && arrayExpandsPositional(n.Array)) {
+				fed[n.Name.Value] = true
+			}
+		case *syntax.CallExpr:
+			if callName(n) == "dybatpho::expect_args" {
+				for _, arg := range n.Args[1:] {
+					name := wordLiteral(arg)
+					if name == "--" {
+						break
+					}
+					fed[name] = true
+				}
+			}
+		}
+		return true
+	})
+	return fed
+}
+
+func arrayExpandsPositional(array *syntax.ArrayExpr) bool {
+	for _, elem := range array.Elems {
+		if expandsPositional(elem.Value) {
+			return true
+		}
+	}
+	return false
+}
+
+// expandsPositional reports whether a word expands a positional parameter.
+func expandsPositional(word *syntax.Word) bool {
+	if word == nil {
+		return false
+	}
+	found := false
+	syntax.Walk(word, func(node syntax.Node) bool {
+		if pe, ok := node.(*syntax.ParamExp); ok && pe.Param != nil && isPositionalParam(pe.Param.Value) {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // wordParam returns the expansion a word consists of, quoted or not, and nil
@@ -221,9 +282,9 @@ func wordParam(word *syntax.Word) *syntax.ParamExp {
 }
 
 // runsCallerCode reports whether a simple command runs code its caller passed:
-// its first word is `"$@"`, a positional parameter or a variable named like
-// `command`, or it is an `eval` of a single expansion.
-func runsCallerCode(call *syntax.CallExpr) bool {
+// its first word is `"$@"`, a positional parameter or a caller-fed variable
+// named like `command`, or it is an `eval` of one of those.
+func runsCallerCode(call *syntax.CallExpr, fed map[string]bool) bool {
 	if len(call.Args) == 0 {
 		return false
 	}
@@ -231,20 +292,20 @@ func runsCallerCode(call *syntax.CallExpr) bool {
 		// `eval "$1"` or `eval "${code}"` runs what it was handed; an `eval` of a
 		// string the function builds itself is BSG040's business.
 		for _, arg := range call.Args[1:] {
-			if wordParam(arg) != nil {
+			if pe := wordParam(arg); pe != nil && pe.Param != nil && (isPositionalParam(pe.Param.Value) || fed[pe.Param.Value]) {
 				return true
 			}
 		}
 		return false
 	}
-	return isCodeParam(wordParam(call.Args[0]))
+	return isCodeParam(wordParam(call.Args[0]), fed)
 }
 
 // passesCallerCode reports whether a call hands the caller's code on: one of its
-// arguments is `"$@"` or a variable named like `command`.
-func passesCallerCode(call *syntax.CallExpr) bool {
+// arguments is `"$@"` or a caller-fed variable named like `command`.
+func passesCallerCode(call *syntax.CallExpr, fed map[string]bool) bool {
 	for _, arg := range call.Args[1:] {
-		if pe := wordParam(arg); pe != nil && isCodeParam(pe) && !isPositionalDigit(pe) {
+		if pe := wordParam(arg); pe != nil && isCodeParam(pe, fed) && !isPositionalDigit(pe) {
 			return true
 		}
 	}
