@@ -2,6 +2,7 @@ package rules
 
 import (
 	"regexp"
+	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
 
@@ -49,7 +50,7 @@ func checkBareEnvironment(f *File, r *Reporter) {
 			return true
 		}
 		name := pe.Param.Value
-		if seen[name] || !upperName.MatchString(name) || shellVariables[name] || p.Assigned(name) {
+		if seen[name] || !upperName.MatchString(name) || shellVariables[name] || strings.HasPrefix(name, "BATS_") || p.Assigned(name) {
 			return true
 		}
 		seen[name] = true

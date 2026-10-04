@@ -15,5 +15,5 @@ readonly CONFIG_PATH="/etc/app.conf"
 function _settings {
   printf '%s\n' "${EDITOR}" "${#XDG_CONFIG_HOME}"
   printf '%s\n' "${PAGER:-less}" "${TERM-}" "${LOG_DIR}" "${CONFIG_PATH}"
-  printf '%s\n' "${HOME}" "${BASH_SOURCE[0]}" "${EDITOR}"
+  printf '%s\n' "${HOME}" "${BASH_SOURCE[0]}" "${EDITOR}" "${BATS_TEST_TMPDIR}"
 }
