@@ -40,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is always reported. The argument checks (`dybatpho::expect_args` and its
   kin) are not counted, as they refuse a call written wrong, not its input.
 
+- `BSG048` warns about `<(...)` fed by a function of the run that can fail —
+  one that can stop the script, or that has a `return` other than `return 0` —
+  including as the first command of a pipeline inside it. Nothing reads the
+  status of a process substitution, so a failure looks like empty output.
+  External commands such as `find` are left alone.
+
 ## [0.3.2]
 
 ### Added
