@@ -115,7 +115,7 @@ function _check_tag_free {
 #######################################
 function _unreleased_body {
   [[ -f "${CHANGELOG}" ]] || return 0
-  # shellcheck disable=SC2312
+  # shellcheck disable=SC2312 # sed on a file that was just checked; pipefail reports a failure
   sed -n '/^## \[Unreleased\]/,/^## \[/{ /^## \[/d; p; }' "${CHANGELOG}" \
     | sed -e '/./,$!d' \
     | awk 'BEGIN { blank = 0 }
@@ -149,7 +149,7 @@ function _write_changelog {
   # from it on is history, minus the Unreleased section that just became one.
   local preamble history
   preamble="$(sed '/^## \[/,$d' "${CHANGELOG}")"
-  # shellcheck disable=SC2312
+  # shellcheck disable=SC2312 # pipefail turns a failing stage into the status of the assignment
   history="$(sed -n '/^## \[/,$p' "${CHANGELOG}" \
     | sed '/^## \[Unreleased\]/,/^## \[/{ /^## \[Unreleased\]/d; /^## \[/!d; }')"
 

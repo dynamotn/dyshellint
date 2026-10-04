@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `BSG110` reports a function, or an entrypoint, whose last statement is
+  `test && action`: when the test is false the list fails, that status becomes
+  the function's, and `set -e` stops a caller whose call did everything it was
+  asked. A predicate built of tests only, such as `[[ -n $1 ]] && dybatpho::is
+  file "$1"`, is left alone, as its status is the answer.
+
+- `BSG111` warns about an `EXIT` handler, written inline or as a function of
+  the run, that ends with `exit` and a literal status, which replaces the
+  status of the script.
+
+- `BSG112` warns about `wait "${pid}"` run as a plain statement in a loop under
+  `set -e`: the first job that failed stops the loop, and the others are
+  neither waited for nor reported.
+
+- `BSG113` reports `name=value` or `name+=value` on a name the same function,
+  or the top level of the file, declares as an array or assigns a list to. It
+  writes element 0 only. Declarations and namerefs are left alone.
+
+- `BSG114` reports a `PATH` assignment that holds `.`, an empty element or a
+  world-writable directory such as `/tmp`. `${PATH:+:${PATH}}` is understood.
+
+- `BSG115` warns about `.` or `source` of a configuration file under the home
+  or configuration directory, the current directory, or a world-writable one:
+  sourcing runs every line of it with the rights of the script.
+
+- `BSG116` reports a Bash version check written as
+  `BASH_VERSINFO[0] >= X && BASH_VERSINFO[1] >= Y`, which refuses a newer major
+  with a lower minor, and a text comparison of `BASH_VERSION`.
+
+- `BSG117` warns about a `while` or `until` loop that waits on `curl`, `wget`,
+  `ssh` or another network command and never sleeps, and `BSG118` about `ssh`
+  or `scp` with no `ConnectTimeout`, outside `timeout`.
+
+- `BSG119` warns about `find -exec ... {} \;` where `{}` is the last argument,
+  which `+` runs once for many files.
+
+- `BSG120` warns about a block of several commands, or a loop, a conditional or
+  a `case`, whose standard error goes to `/dev/null` as a whole. The exclusive
+  creation `( set -C; : > "${name}" ) 2> /dev/null` is left alone.
+
+- `BSG121` warns about a condition that runs a variable as a command, as in
+  `if ${force}; then`. A variable named for the command it holds, such as
+  `check_cmd` or `handler`, is left alone.
+
+- `BSG122` warns about `> file 2>&1`, which `&>` writes in one operator, and
+  `2>&1 > file`, which still sends errors to the terminal.
+
+- `BSG123` warns about a `# shellcheck disable=` directive with no reason,
+  neither after it on the same line nor in a comment right above it.
+
 ## [0.5.0]
 
 ### Added
