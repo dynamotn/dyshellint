@@ -45,7 +45,7 @@ var gnuOnly = map[string][]gnuOption{
 
 // flavourProbe matches what a function does when it tells the platforms apart
 // before choosing an option.
-var flavourProbe = regexp.MustCompile(`--version|(?i:\b(gnu|bsd|busybox|darwin|macos|flavou?r|uname|is_linux|is_macos|goos)\b)`)
+var flavourProbe = regexp.MustCompile(`--version|(?i:gnu|bsd|busybox|darwin|macos|flavou?r|uname|is_linux|is_macos|goos)`)
 
 // linuxOnly matches a comment declaring that a file runs on Linux alone.
 var linuxOnly = regexp.MustCompile(`(?i)linux[- ]only`)

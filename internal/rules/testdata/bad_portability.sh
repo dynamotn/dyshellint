@@ -32,3 +32,12 @@ function _probed_size {
     stat -f %z "${file}"
   fi
 }
+
+#######################################
+# @description Pick the stat format by the name of the flavour it targets
+# @arg $1 string File to inspect
+#######################################
+function _flavoured_size {
+  local file="$1" gnu_format="%s"
+  stat -L -c "${gnu_format}" "${file}" 2> /dev/null || stat -L -f %z "${file}"
+}
