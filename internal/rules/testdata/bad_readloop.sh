@@ -16,6 +16,9 @@ function _lines {
   while IFS= read -r line; do
     printf '%s\n' "${line}"
   done < <(cat "${file}")
+  while IFS= read -r line; do
+    printf '%s\n' "${line}"
+  done < <(git ls-files)
   while read -r line || [[ -n "${line}" ]]; do
     printf '%s\n' "${line}"
   done < "${file}"
