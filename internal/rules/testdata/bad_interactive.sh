@@ -8,7 +8,7 @@ set -euo pipefail
 # @description Ask for confirmation without looking for a terminal
 # @noargs
 #######################################
-function _confirm {
+function _proceed {
   local answer
   read -r -p "Continue? " answer
   [[ "${answer}" == y ]]
@@ -18,7 +18,7 @@ function _confirm {
 # @description Ask only when someone can answer
 # @noargs
 #######################################
-function _confirm_safely {
+function _proceed_safely {
   local answer
   [[ -t 0 ]] || return 1
   read -r -p "Continue? " answer
@@ -35,5 +35,16 @@ function _read_input {
     printf '%s\n' "${line}"
   done < "$1"
   read -r -t 5 answer || true
+  printf '%s\n' "${answer}"
+}
+
+#######################################
+# @description Ask a question, which is this function's whole job
+# @noargs
+#######################################
+function _prompt {
+  local answer
+  read -r answer
+  read -rsn1 answer
   printf '%s\n' "${answer}"
 }

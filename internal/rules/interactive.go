@@ -18,6 +18,9 @@ func init() {
 	})
 }
 
+// promptName matches the name of a function whose job is to ask the user.
+var promptName = regexp.MustCompile(`(?i)prompt|ask|confirm|menu|select|input|question`)
+
 // ttyCheck matches what a function does to find out whether someone can answer.
 var ttyCheck = regexp.MustCompile(`-t [0-2]\b|is_tty|is_interactive|interactive|\btty\b`)
 
@@ -29,7 +32,10 @@ func checkUnguardedPrompt(f *File, r *Reporter) {
 			return true
 		}
 		call, ok := stmt.Cmd.(*syntax.CallExpr)
-		if !ok || callName(call) != "read" || len(stmt.Redirs) > 0 || hasFlag(call, 'u') || hasFlag(call, 't') {
+		if !ok || callName(call) != "read" || len(stmt.Redirs) > 0 || hasFlag(call, 'u') || hasFlag(call, 't') ||
+			hasFlag(call, 'n') || hasFlag(call, 'N') {
+			// A one-key read is the inside of a menu or a key loop, whose
+			// caller has already made sure there is a terminal.
 			return true
 		}
 		if readsStream(stmt, up) {
@@ -37,6 +43,11 @@ func checkUnguardedPrompt(f *File, r *Reporter) {
 		}
 		scope := f.Src
 		if decl := enclosingFunc(call, up); decl != nil {
+			// A function that is itself the prompt leaves the terminal check to
+			// the code that decides to ask.
+			if promptName.MatchString(ownName(f, decl.Name.Value)) {
+				return true
+			}
 			scope = []byte(f.Text(decl.Pos(), decl.End()))
 		}
 		if ttyCheck.Match(scope) {
