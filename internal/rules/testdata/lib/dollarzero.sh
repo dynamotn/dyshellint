@@ -10,7 +10,7 @@ DOLLARZERO_SELF="$(dirname "${BASH_SOURCE[0]}")"
 # @noargs
 #######################################
 function dollarzero::where {
-  printf '%s %s %s\n' "${DOLLARZERO_DIR}" "${DOLLARZERO_SELF}" "${0%/*}"
+  printf '%s %s %s %s\n' "${DOLLARZERO_DIR}" "${DOLLARZERO_SELF}" "${0%/*}" "${0##*/}"
   if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     printf 'run directly\n'
   fi
