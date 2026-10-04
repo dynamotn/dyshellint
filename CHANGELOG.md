@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loop or a branch, with `mapfile`, or from `"$@"` does not. The guarded form
   `${a[@]+"${a[@]}"}` and `${#a[@]}` are left alone.
 
+- `BSG054` warns about `FUNCNAME[N]` with a literal `N` of 2 or more. The
+  function that far up the stack depends on every call in between, so a helper
+  reached through one more call names the wrong function in its error message.
+  Passing the public function's own `${FUNCNAME[0]}` down names it reliably.
+
 ## [0.3.2]
 
 ### Added
