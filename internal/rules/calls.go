@@ -62,6 +62,13 @@ func init() {
 			Doc:      "Say why on a `# shellcheck disable=` directive",
 			Check:    checkBareDirective,
 		},
+		Rule{
+			Code:     "BSG127",
+			Section:  sectionTestingStrings,
+			Severity: lint.SeverityWarning,
+			Doc:      "Do not prefix both sides of a string comparison with `x`: quote the variable instead",
+			Check:    checkXPrefix,
+		},
 	)
 }
 
@@ -242,6 +249,71 @@ func checkSplitRedirect(f *File, r *Reporter) {
 					r.At(stmt.Redirs[toFile].OpPos, "`> file 2>&1` sends both streams to the file; write `&>` (or `&>>` to append), which cannot be put in the wrong order")
 				} else if i+1 < len(stmt.Redirs) && stmt.Redirs[i+1].Op == syntax.RdrOut || i+1 < len(stmt.Redirs) && stmt.Redirs[i+1].Op == syntax.AppOut {
 					r.At(redir.OpPos, "`2>&1 > file` copies standard error to the terminal before standard output moves, so errors still reach the screen; write `&> file`")
+				}
+			}
+		}
+		return true
+	})
+}
+
+// leadingParts returns the parts a word starts with, looking inside the double
+// quotes of a word that is quoted as a whole.
+func leadingParts(word *syntax.Word) []syntax.WordPart {
+	if len(word.Parts) == 1 {
+		if dq, ok := word.Parts[0].(*syntax.DblQuoted); ok {
+			return dq.Parts
+		}
+	}
+	return word.Parts
+}
+
+// xPrefix returns the letter a word starts with when it is `x` or `X`, and
+// whether a variable follows that letter directly, as in `"x${answer}"`.
+func xPrefix(word *syntax.Word) (byte, bool) {
+	parts := leadingParts(word)
+	if len(parts) == 0 {
+		return 0, false
+	}
+	lit, ok := parts[0].(*syntax.Lit)
+	if !ok || lit.Value == "" || lit.Value[0] != 'x' && lit.Value[0] != 'X' {
+		return 0, false
+	}
+	if lit.Value != lit.Value[:1] || len(parts) < 2 {
+		return lit.Value[0], false
+	}
+	_, isVar := parts[1].(*syntax.ParamExp)
+	return lit.Value[0], isVar
+}
+
+// checkXPrefix reports `"x${a}" == "xb"`, a workaround for the old `test`
+// command that took a value such as `-n` or `!` for an operator.
+func checkXPrefix(f *File, r *Reporter) {
+	check := func(x, y *syntax.Word, pos syntax.Pos) {
+		if x == nil || y == nil {
+			return
+		}
+		lx, vx := xPrefix(x)
+		ly, vy := xPrefix(y)
+		if lx != 0 && lx == ly && (vx || vy) {
+			r.At(pos, "the `%c` prefix on both sides works around the old `test`, which took a value such as `-n` for an operator; quote the variable instead: `[[ \"${var}\" == value ]]`", lx)
+		}
+	}
+	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.BinaryTest:
+			if n.Op != syntax.TsMatch && n.Op != syntax.TsMatchShort && n.Op != syntax.TsNoMatch {
+				return true
+			}
+			x, _ := n.X.(*syntax.Word)
+			y, _ := n.Y.(*syntax.Word)
+			check(x, y, n.Pos())
+		case *syntax.CallExpr:
+			if name := callName(n); name != "[" && name != "test" || len(n.Args) < 4 {
+				return true
+			}
+			for i := 2; i+1 < len(n.Args); i++ {
+				if op := wordLiteral(n.Args[i]); op == "=" || op == "==" || op == "!=" {
+					check(n.Args[i-1], n.Args[i+1], n.Args[i-1].Pos())
 				}
 			}
 		}

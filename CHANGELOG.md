@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `BSG127` warns about a string comparison with an `x` put before both sides,
+  as in `[[ "x${answer}" == "xyes" ]]`: it works around the old `test`, which
+  took a value such as `-n` for an operator, and `[[ ... ]]` does not need it.
+
 ## [0.6.0]
 
 ### Added
