@@ -36,6 +36,11 @@ func checkDryRunBypass(f *File, r *Reporter) {
 		return
 	}
 	eachFunc(f, func(decl *syntax.FuncDecl) {
+		// A private helper of a library runs for a public function, which is
+		// where the dry run is decided.
+		if f.Role == RoleLibrary && !isPublicFunc(decl) {
+			return
+		}
 		text := f.Text(decl.Pos(), decl.End())
 		if strings.Contains(text, "DRY_RUN") || strings.Contains(text, "dry_run") {
 			return
