@@ -10,15 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `BSG014` reports a plain local in a public function that writes to a
-  variable its caller names, through a nameref bound to an argument,
-  `printf -v`, `read`, `mapfile` or `readarray`. A caller whose variable has
-  the same name as the local gets the local instead and loses the value.
-  Prefixing the locals with two underscores keeps them apart.
+  variable its caller names — through a nameref bound to an argument,
+  `printf -v`, `read`, `mapfile` or `readarray`, or by handing the name on to a
+  function that does, followed across every file of the run. A caller whose
+  variable has the same name as the local gets the local instead and loses the
+  value. Only the locals declared before the name is last resolved count, and a
+  name a `case` arm pins to literal words is the function's own. Prefixing the
+  locals with two underscores keeps them apart.
 
 - `BSG015` warns about a plain local in a function that runs code its caller
-  passed — `"$@"`, a positional parameter or a variable named like `command`
-  or `handler` run as a command, or `eval` — or that hands such code on to a
-  function that does. The code runs in the function's scope, so it can read and
+  passed — `"$@"`, a positional parameter, or a variable named like `command`
+  or `handler` filled from the arguments, run as a command or by `eval`, in a
+  subshell too — or that hands such code on to a function that does. The code runs in the function's scope, so it can read and
   change any local declared before it. Files are now parsed before any rule
   runs, so a rule can follow a call into the file that defines the function.
 
