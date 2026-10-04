@@ -234,6 +234,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dot. An array element such as `BASH_VERSINFO[0]`, `-lt` on a plain count, and
   `==` are left alone.
 
+- `BSG098` warns about `read` that asks the user — no redirection, no `-u`,
+  not reading a loop's or a pipeline's input — with no `-t` timeout, in a
+  function or script that never checks for a terminal (`[[ -t 0 ]]`,
+  `is_tty`, `is_interactive`): in CI, cron or a pipe it waits forever.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
