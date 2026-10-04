@@ -17,6 +17,8 @@ function _show {
   echo -n "${value}"
   echo "value: ${value}"
   echo "Installing tools"
+  echo $#
+  echo "$?, done"
   printf '%s\n' "${value}"
 }
 

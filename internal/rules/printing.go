@@ -62,8 +62,13 @@ func checkEchoData(f *File, r *Reporter) {
 	})
 }
 
+// numericSpecials are the special parameters that always hold a number, so
+// they cannot start with a dash.
+var numericSpecials = map[string]bool{"#": true, "?": true, "$": true, "!": true}
+
 // startsWithExpansion reports whether the first thing a word produces comes
-// from a parameter expansion or a command substitution.
+// from a parameter expansion or a command substitution that may start with a
+// dash.
 func startsWithExpansion(word *syntax.Word) bool {
 	if len(word.Parts) == 0 {
 		return false
@@ -75,8 +80,10 @@ func startsWithExpansion(word *syntax.Word) bool {
 		}
 		part = dq.Parts[0]
 	}
-	switch part.(type) {
-	case *syntax.ParamExp, *syntax.CmdSubst:
+	switch p := part.(type) {
+	case *syntax.ParamExp:
+		return p.Param == nil || p.Length || !numericSpecials[p.Param.Value]
+	case *syntax.CmdSubst:
 		return true
 	}
 	return false

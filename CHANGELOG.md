@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BSG100` warns about `echo -e`, `echo -n`, and an `echo` whose first argument
   starts with a variable or a command substitution: a value of `-n` then prints
   nothing, and `-e` turns the backslashes of the data into escapes. An `echo`
-  of a fixed message is left alone.
+  of a fixed message, or one that starts with `$#`, `$?`, `$$` or `$!`, which
+  always hold a number, is left alone.
 
 - `BSG101` reports a here document opened with `<<-`, which strips leading tabs
   only, and `BSG102` warns about one whose delimiter is unquoted, that expands
