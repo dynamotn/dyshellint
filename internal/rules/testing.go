@@ -3,6 +3,7 @@ package rules
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
@@ -12,7 +13,10 @@ import (
 
 const sectionTesting = "Testing"
 
-const sectionStrictAssertions = "Testing > Strict Output Assertions"
+const (
+	sectionStrictAssertions = "Testing > Strict Output Assertions"
+	sectionTestIsolation    = "Testing > Test Isolation"
+)
 
 func init() {
 	register(
@@ -22,6 +26,14 @@ func init() {
 			Severity: lint.SeverityError,
 			Doc:      "Give every library a matching `test/<area>.bats`",
 			Check:    checkLibraryHasTest,
+		},
+		Rule{
+			Code:     "BSG062",
+			Section:  sectionTestIsolation,
+			Severity: lint.SeverityWarning,
+			Doc:      "Run a child script from a file, not `bash -c`, and keep a git hook's environment out of tests that run git",
+			Check:    checkTestIsolation,
+			Bats:     true,
 		},
 		Rule{
 			Code:     "BSG061",
@@ -97,4 +109,36 @@ func checkLibraryHasTest(f *File, r *Reporter) {
 		return
 	}
 	r.AtLine(1, "no test file for this library; add %s, written with bats", filepath.ToSlash(strings.TrimPrefix(test, "./")))
+}
+
+// gitEnvCleared matches a file that clears the repository variables a git hook
+// exports, such as `unset GIT_DIR GIT_INDEX_FILE`.
+var gitEnvCleared = regexp.MustCompile(`unset[^\n]*\bGIT_DIR\b|\bGIT_DIR=`)
+
+func checkTestIsolation(f *File, r *Reporter) {
+	if !f.Bats {
+		return
+	}
+	cleared := false
+	for _, other := range f.project().Files() {
+		if gitEnvCleared.Match(other.Src) {
+			cleared = true
+		}
+	}
+	gitReported := false
+	eachCall(f, func(call *syntax.CallExpr, _ string) {
+		for i, arg := range call.Args {
+			lit := wordLiteral(arg)
+			switch {
+			case shellRunners[lit] && i+1 < len(call.Args) && wordLiteral(call.Args[i+1]) == "-c":
+				r.At(arg.Pos(), "`%s -c` runs with an empty `BASH_SOURCE`, which breaks code that reads it under `set -u`, coverage included; write the script to a file under `$BATS_TEST_TMPDIR` and run that",
+					lit)
+				return
+			case lit == "git" && !cleared && !gitReported:
+				gitReported = true
+				r.At(arg.Pos(), "this test runs `git`, and nothing in the suite clears `GIT_DIR` and its kin; run from a git hook, every git call lands in the repository being committed to; unset them in the test helper")
+				return
+			}
+		}
+	})
 }

@@ -144,6 +144,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   second time stops on the constant it already declared. A file that returns
   early when it is already loaded, before the declaration, is left alone.
 
+- `BSG062` warns, in a `.bats` file, about `bash -c` or `sh -c` (also behind
+  `run`), whose script runs with an empty `BASH_SOURCE` and breaks code that
+  reads it under `set -u`, coverage included; and about a test that runs `git`
+  when no file of the run clears `GIT_DIR` and its kin, so that run from a git
+  hook every git call lands in the repository being committed to.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
