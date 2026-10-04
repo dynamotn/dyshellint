@@ -41,7 +41,7 @@ func checkDieInSubst(f *File, r *Reporter) {
 			up = parents(f.Syntax)
 		}
 		stmt := enclosingStmt(cs, up)
-		if stmt == nil {
+		if stmt == nil || stopsAnyway(cs, up) {
 			return true
 		}
 		if !carriesStatus(stmt, cs, up) {
@@ -163,6 +163,18 @@ func guardsStatus(stmt *syntax.Stmt) bool {
 		return statusGuards[callName(cmd)]
 	case *syntax.BinaryCmd:
 		return guardsStatus(cmd.X)
+	}
+	return false
+}
+
+// stopsAnyway reports whether a substitution builds an argument of a command
+// that stops the script or returns anyway, such as the message of
+// `dybatpho::die`: its status no longer decides anything.
+func stopsAnyway(cs *syntax.CmdSubst, up map[syntax.Node]syntax.Node) bool {
+	for n := up[cs]; n != nil; n = up[n] {
+		if call, ok := n.(*syntax.CallExpr); ok {
+			return statusGuards[callName(call)]
+		}
 	}
 	return false
 }

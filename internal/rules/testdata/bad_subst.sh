@@ -48,6 +48,7 @@ function _main {
   printf '%s\n' "$(_parse "$1")"
   number=$(_wrapper "$1")
   plain=$(_echo "$1")
+  [[ -n "${plain}" ]] || exit "$(_parse 1)"
   printf '%s %s\n' "${number}" "${plain}"
 }
 
