@@ -59,11 +59,14 @@ func checkEndOfOptions(f *File, r *Reporter) {
 			if operand == 1 && skipsFirst[name] {
 				continue
 			}
+			// Only the first operand can still be taken for an option once
+			// the command has seen a non-option word on GNU, and it is the one
+			// a value starting with `-` is most often handed in.
 			if isScalarExpansion(arg) {
 				r.At(arg.Pos(), "`%s` reads a value that starts with `-` as an option; write `%s -- %s`",
 					name, name, wordSource(arg))
-				return
 			}
+			return
 		}
 	})
 }
