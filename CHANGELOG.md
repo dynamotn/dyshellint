@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG117` also points a script that loads dybatpho at `dybatpho::retry` and `dybatpho::curl_do`, which back off between attempts and stop.
 
+- `BSG118` also points a script that loads dybatpho at `dybatpho::run_with_timeout`, which bounds the call and returns 124 on a timeout.
+
 ## [0.6.0]
 
 ### Added
