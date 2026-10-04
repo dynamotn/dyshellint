@@ -26,7 +26,7 @@ func TestRules(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if !entry.IsDir() && filepath.Ext(path) == ".sh" {
+		if ext := filepath.Ext(path); !entry.IsDir() && (ext == ".sh" || ext == ".bats") {
 			fixtures = append(fixtures, path)
 		}
 		return nil
@@ -50,7 +50,7 @@ func TestRules(t *testing.T) {
 				return
 			}
 			t.Errorf("findings do not match %s.want\n got: %s\nwant: %s",
-				strings.TrimSuffix(fixture, ".sh"), format(got), format(want))
+				strings.TrimSuffix(fixture, filepath.Ext(fixture)), format(got), format(want))
 		})
 	}
 }
@@ -82,7 +82,7 @@ func check(t *testing.T, path string) []string {
 // readWant loads the expected findings, treating a missing file as "clean".
 func readWant(t *testing.T, fixture string) []string {
 	t.Helper()
-	path := strings.TrimSuffix(fixture, ".sh") + ".want"
+	path := strings.TrimSuffix(fixture, filepath.Ext(fixture)) + ".want"
 	content, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return nil
@@ -102,7 +102,7 @@ func readWant(t *testing.T, fixture string) []string {
 // writeWant records the current findings as the expectation of a fixture.
 func writeWant(t *testing.T, fixture string, got []string) {
 	t.Helper()
-	path := strings.TrimSuffix(fixture, ".sh") + ".want"
+	path := strings.TrimSuffix(fixture, filepath.Ext(fixture)) + ".want"
 	if len(got) == 0 {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			t.Fatalf("remove %s: %v", path, err)

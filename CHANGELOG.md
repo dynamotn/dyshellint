@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reached through one more call names the wrong function in its error message.
   Passing the public function's own `${FUNCNAME[0]}` down names it reliably.
 
+- Bats test files (`*.bats`) are linted: a directory walk picks them up, they
+  are parsed in the Bats dialect, and shfmt formats them as Bats, so
+  `dyshellint test/*.bats` no longer stops on `@test`. Only the formatting
+  rules and the rules written for tests run on them; the header, shebang and
+  layout rules describe scripts and stay off.
+
 ## [0.3.2]
 
 ### Added

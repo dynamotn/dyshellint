@@ -61,6 +61,11 @@ ShellCheck finding, and `FMT001` for a formatting difference. Any of them can be
 turned off for a run with `--exclude-rules`, or silenced in place with a
 disable comment.
 
+Bats test files (`*.bats`) are linted too: they are parsed with the Bats
+dialect, formatted by shfmt as Bats, and checked by ShellCheck and by the rules
+written for tests, such as strict output assertions. The rules about headers,
+shebangs and layout, which describe scripts, do not apply to them.
+
 ## Silence a finding in place
 
 A `# dyshellint disable=CODE,...` comment works the way ShellCheck's own

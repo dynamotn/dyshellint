@@ -23,7 +23,21 @@ type Shfmt struct {
 }
 
 // Options are the formatting flags the guide implies.
-var shfmtOptions = []string{"--language-dialect", "bash", "--indent", "2", "--case-indent", "--binary-next-line", "--space-redirects", "--diff"}
+var shfmtOptions = []string{"--indent", "2", "--case-indent", "--binary-next-line", "--space-redirects", "--diff"}
+
+// shfmtDialect is the language shfmt parses a file as: Bats for a `.bats` test,
+// whose `@test` blocks are not Bash, and Bash for everything else.
+func shfmtDialect(file string) []string {
+	if IsBats(file) {
+		return []string{"--language-dialect", "bats"}
+	}
+	return []string{"--language-dialect", "bash"}
+}
+
+// IsBats reports whether a file is a Bats test, by its extension.
+func IsBats(file string) bool {
+	return strings.HasSuffix(file, ".bats")
+}
 
 var hunkHeader = regexp.MustCompile(`^@@ -(\d+)(?:,\d+)? \+\d+(?:,\d+)? @@`)
 
@@ -37,7 +51,7 @@ func (s Shfmt) Run(files []string) ([]Finding, error) {
 		return nil, fmt.Errorf("%w: %s", ErrToolMissing, binary)
 	}
 	return eachFile(files, s.Jobs, func(file string) ([]Finding, error) {
-		out, err := exec.Command(binary, slices.Concat(shfmtOptions, []string{file})...).Output()
+		out, err := exec.Command(binary, slices.Concat(shfmtDialect(file), shfmtOptions, []string{file})...).Output()
 		var exitErr *exec.ExitError
 		switch {
 		case err == nil:

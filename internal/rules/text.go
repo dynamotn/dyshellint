@@ -23,6 +23,7 @@ func init() {
 			Severity: lint.SeverityError,
 			Doc:      "Keep lines at 120 characters or fewer",
 			Check:    checkLineLength,
+			Bats:     true,
 		},
 		Rule{
 			Code:     "BSG071",
@@ -30,6 +31,7 @@ func init() {
 			Severity: lint.SeverityError,
 			Doc:      "Indent with two spaces, never with tabs",
 			Check:    checkTabIndent,
+			Bats:     true,
 		},
 		Rule{
 			Code:     "BSG072",
@@ -37,6 +39,7 @@ func init() {
 			Severity: lint.SeverityError,
 			Doc:      "Do not leave trailing whitespace",
 			Check:    checkTrailingSpace,
+			Bats:     true,
 		},
 	)
 }

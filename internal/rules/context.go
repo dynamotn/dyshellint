@@ -61,6 +61,10 @@ type File struct {
 	// UsesDybatpho reports whether the file sources dybatpho, which relaxes the
 	// `set -euo pipefail` rule and enables the dybatpho-specific checks.
 	UsesDybatpho bool
+	// Bats reports whether the file is a Bats test. Only the rules marked for
+	// tests run on it: the layout and documentation rules of a script do not
+	// fit a file of `@test` blocks.
+	Bats bool
 	// Project is every file of the run, linked so that a rule can follow a
 	// call into the file that defines it. Nil until Link runs.
 	Project *Project
@@ -109,6 +113,8 @@ type Rule struct {
 	Doc string
 	// Check runs the rule over one parsed file.
 	Check func(f *File, r *Reporter)
+	// Bats marks a rule that also applies to a `.bats` test file.
+	Bats bool
 }
 
 var registry []Rule
@@ -133,6 +139,9 @@ func All() []Rule {
 func Run(f *File, rules []Rule) []lint.Finding {
 	var findings []lint.Finding
 	for _, rule := range rules {
+		if f.Bats && !rule.Bats {
+			continue
+		}
 		r := &Reporter{file: f, rule: rule}
 		rule.Check(f, r)
 		findings = append(findings, r.findings...)
@@ -144,7 +153,11 @@ var dybatphoSource = regexp.MustCompile(`dybatpho/init\.sh|dybatpho::`)
 
 // NewFile parses src and derives everything the rules need from its path.
 func NewFile(path string, src []byte, executable bool) (*File, error) {
-	parser := syntax.NewParser(syntax.KeepComments(true), syntax.Variant(syntax.LangBash))
+	variant := syntax.LangBash
+	if lint.IsBats(path) {
+		variant = syntax.LangBats
+	}
+	parser := syntax.NewParser(syntax.KeepComments(true), syntax.Variant(variant))
 	prog, err := parser.Parse(bytes.NewReader(src), path)
 	if err != nil {
 		return nil, err
@@ -157,6 +170,7 @@ func NewFile(path string, src []byte, executable bool) (*File, error) {
 		Executable:   executable,
 		ModeKnown:    true,
 		UsesDybatpho: dybatphoSource.Match(src),
+		Bats:         lint.IsBats(path),
 	}
 	f.Shebang = shebangOf(f.Lines)
 	f.Role = RoleEntrypoint

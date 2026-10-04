@@ -87,10 +87,10 @@ func skipDir(name string) bool {
 }
 
 // IsShellFile reports whether a file is worth parsing: the extension says so,
-// or the first line is a bash shebang.
+// `.bats` included, or the first line is a bash shebang.
 func IsShellFile(path string) bool {
 	switch filepath.Ext(path) {
-	case ".sh", ".bash":
+	case ".sh", ".bash", ".bats":
 		return true
 	case "":
 	default:
