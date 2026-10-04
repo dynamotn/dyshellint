@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as in `[[ "x${answer}" == "xyes" ]]`: it works around the old `test`, which
   took a value such as `-n` for an operator, and `[[ ... ]]` does not need it.
 
+- `BSG128` warns about a local value that reaches the remote command of `ssh`
+  unquoted, as a word of its own or spliced into a command string: ssh joins
+  the words with spaces and the remote shell splits them again, so a space
+  splits the value and `$(...)` or `;` in it runs there. A value quoted with
+  `${value@Q}` or `printf %q`, single-quoted text, and a script sent to
+  `bash -s` with `declare -f` are left alone. The call is found under
+  `timeout`, `nohup`, `command` and `exec` too.
+
 ## [0.6.0]
 
 ### Added

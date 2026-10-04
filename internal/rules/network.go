@@ -8,7 +8,10 @@ import (
 	"gitlab.com/dynamo-tools/dyshellint/internal/lint"
 )
 
-const sectionNetwork = "Calling Commands > Network Requests"
+const (
+	sectionNetwork = "Calling Commands > Network Requests"
+	sectionRemote  = "Calling Commands > Remote Commands"
+)
 
 func init() {
 	register(Rule{
@@ -120,4 +123,125 @@ func checksHTTPCode(call *syntax.CallExpr) bool {
 		}
 	}
 	return false
+}
+
+func init() {
+	register(Rule{
+		Code:     "BSG128",
+		Section:  sectionRemote,
+		Severity: lint.SeverityWarning,
+		Doc:      "Quote every local value in a remote `ssh` command with `${value@Q}`, or send a script to `bash -s`",
+		Check:    checkRemoteSplice,
+	})
+}
+
+// sshArgOptions are the options of `ssh` that take a value.
+const sshArgOptions = "BbcDEeFIiJLlmOoPpQRSWw"
+
+// unwrapCall returns the words of the command a call runs, past the wrappers
+// that only bound or detach it: `timeout`, `nohup`, `command` and `exec`.
+func unwrapCall(call *syntax.CallExpr) []*syntax.Word {
+	args := call.Args
+	for len(args) > 0 {
+		switch wordLiteral(args[0]) {
+		case "nohup", "command", "exec":
+			args = args[1:]
+		case "timeout":
+			args = args[1:]
+			for len(args) > 0 && strings.HasPrefix(wordLiteral(args[0]), "-") {
+				if lit := wordLiteral(args[0]); lit == "-s" || lit == "-k" {
+					args = args[1:]
+				}
+				args = args[1:]
+			}
+			// The duration.
+			if len(args) > 0 {
+				args = args[1:]
+			}
+		default:
+			return args
+		}
+	}
+	return args
+}
+
+// remoteCommand returns the words `ssh` sends to the remote host as its
+// command, given the arguments after `ssh`, or nil when there is none or the
+// options cannot be told apart from the host, as when they come from an array.
+func remoteCommand(args []*syntax.Word) []*syntax.Word {
+	for i := 0; i < len(args); i++ {
+		src := wordSource(args[i])
+		if strings.Contains(src, "[@]") || strings.Contains(src, "[*]") {
+			return nil
+		}
+		lit := wordLiteral(args[i])
+		switch {
+		case lit == "--":
+			if i+1 < len(args) {
+				return args[i+2:]
+			}
+			return nil
+		case len(lit) > 1 && lit[0] == '-':
+			// In `-qo value` the last letter takes the next word; in `-p22` the
+			// value is attached.
+			for j := 1; j < len(lit); j++ {
+				if strings.IndexByte(sshArgOptions, lit[j]) >= 0 {
+					if j == len(lit)-1 {
+						i++
+					}
+					break
+				}
+			}
+		default:
+			return args[i+1:]
+		}
+	}
+	return nil
+}
+
+// unquotedVar returns the first variable a word expands without quoting it
+// for the shell, leaving command substitutions such as `$(declare -f fn)`
+// alone.
+func unquotedVar(word *syntax.Word, quoted map[string]bool) string {
+	var found string
+	syntax.Walk(word, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.CmdSubst:
+			return false
+		case *syntax.ParamExp:
+			if found == "" && n.Param != nil && !isShellQuoted(n) && !quoted[n.Param.Value] {
+				found = n.Param.Value
+			}
+			return false
+		}
+		return found == ""
+	})
+	return found
+}
+
+// checkRemoteSplice reports a local value that reaches the remote shell of
+// `ssh` unquoted. ssh joins its command words with spaces, and the remote
+// login shell splits the string again, so the quotes of the local shell are
+// lost on the way.
+func checkRemoteSplice(f *File, r *Reporter) {
+	quoted := quotedVars(f.Syntax)
+	eachCall(f, func(call *syntax.CallExpr, _ string) {
+		args := unwrapCall(call)
+		if len(args) == 0 || wordLiteral(args[0]) != "ssh" {
+			return
+		}
+		words := remoteCommand(args[1:])
+		for _, word := range words {
+			var v string
+			if len(words) == 1 {
+				v = splicedVar(word, quoted)
+			} else {
+				v = unquotedVar(word, quoted)
+			}
+			if v != "" {
+				r.At(word.Pos(), "`ssh` joins its command into one string that the remote shell splits again, so %q loses its quotes there: a space splits it and `$(...)` or `;` in it runs; quote it with `${%s@Q}`, or send the function with `declare -f` to `bash -s`", v, v)
+				return
+			}
+		}
+	})
 }

@@ -24,7 +24,7 @@ var shellRunners = map[string]bool{"bash": true, "sh": true, "dash": true, "zsh"
 
 func checkSplicedCode(f *File, r *Reporter) {
 	eachFunc(f, func(decl *syntax.FuncDecl) {
-		quoted := quotedVars(decl)
+		quoted := quotedVars(decl.Body)
 		allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
 			for _, word := range codeStrings(call, name) {
 				if v := splicedVar(word, quoted); v != "" {
@@ -100,11 +100,11 @@ func isShellQuoted(pe *syntax.ParamExp) bool {
 	return pe.Exp != nil && pe.Exp.Op == syntax.OtherParamOps && pe.Exp.Word != nil && wordLiteral(pe.Exp.Word) == "Q"
 }
 
-// quotedVars returns the variables a function fills with `printf %q`, which
-// are safe to splice into code.
-func quotedVars(decl *syntax.FuncDecl) map[string]bool {
+// quotedVars returns the variables a function body, or a file, fills with
+// `printf %q`, which are safe to splice into code.
+func quotedVars(root syntax.Node) map[string]bool {
 	out := map[string]bool{}
-	syntax.Walk(decl.Body, func(node syntax.Node) bool {
+	syntax.Walk(root, func(node syntax.Node) bool {
 		switch n := node.(type) {
 		case *syntax.CallExpr:
 			if callName(n) != "printf" {
