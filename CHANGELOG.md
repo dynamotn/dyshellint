@@ -178,6 +178,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `$(umask)` to restore from, an `IFS=` in front of one command, and
   `set -- args` are left alone.
 
+- `BSG057` warns about `rm`, `mv`, `cp`, `ln`, `touch`, `mkdir`, `cat`, `ls`,
+  `chmod`, `chown`, `grep` or `sed` given an operand that is one scalar
+  expansion, such as `"${path}"`, with no `--` before it: a value starting
+  with `-` is read as an option. A word with a literal prefix such as
+  `"./${path}"`, the mode or owner of `chmod`/`chown`, the value of an option,
+  and `grep -e`/`sed -e` patterns are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
