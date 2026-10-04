@@ -228,6 +228,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `-s`, when the status of the `.` is not read: without `set -e` a missing
   library only prints an error, and the script runs on without it.
 
+- `BSG097` warns about `[[ a < b ]]`, `[[ a > b ]]` or an arithmetic `<`,
+  `>`, `<=`, `>=` on a variable named like a version, or on a literal such as
+  `1.10`: as text `1.10` sorts before `1.9`, and arithmetic stops at the first
+  dot. An array element such as `BASH_VERSINFO[0]`, `-lt` on a plain count, and
+  `==` are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
