@@ -139,6 +139,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the variable, a validating call (`dybatpho::is int`, a `validate` or
   `expect_int` helper), and a `10#` prefix count as checks.
 
+- `BSG038` reports a top-level `readonly`, `declare -r` or `typeset -r` in a
+  library file that has no source guard before it: sourcing the library a
+  second time stops on the constant it already declared. A file that returns
+  early when it is already loaded, before the declaration, is left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
