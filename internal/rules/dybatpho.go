@@ -116,3 +116,20 @@ func checkErrorHandlers(f *File, r *Reporter) {
 	}
 	r.AtLine(1, "no error handler is installed; call `dybatpho::register_common_handlers` right after sourcing dybatpho")
 }
+
+// withDybatpho appends the dybatpho helper that solves a finding to its
+// message, when the file loads dybatpho, so the advice names a function the
+// script can already call. msg is a format string; advice is taken literally.
+func withDybatpho(f *File, msg, advice string) string {
+	if !f.UsesDybatpho {
+		return msg
+	}
+	return msg + "; " + strings.ReplaceAll(advice, "%", "%%")
+}
+
+// reportWithDybatpho reports a finding at pos, adding the dybatpho advice when
+// the file loads dybatpho. The format stays a constant at the call site, so
+// `go vet` still checks it against the arguments.
+func reportWithDybatpho(f *File, r *Reporter, pos syntax.Pos, advice, format string, args ...any) {
+	r.At(pos, withDybatpho(f, format, advice), args...)
+}

@@ -65,10 +65,9 @@ var awkField = regexp.MustCompile(`^\s*\{\s*print\s+\$[0-9]+\s*;?\s*\}\s*$`)
 // into named fields in the shell. A script that loads dybatpho is also pointed
 // at `dybatpho::split`, which takes a delimiter of several characters as it is.
 func checkFieldSplit(f *File, r *Reporter) {
-	msg := "a process to split a string into fields; `IFS=%s read -r first second _ <<< \"${value}\"` splits it in the shell, or `${value%%%%%s*}` keeps the first field"
-	if f.UsesDybatpho {
-		msg += "; `mapfile -t fields < <(dybatpho::split \"${value}\" '<delimiter>')` splits on a delimiter of several characters and keeps empty fields"
-	}
+	msg := withDybatpho(f,
+		"a process to split a string into fields; `IFS=%s read -r first second _ <<< \"${value}\"` splits it in the shell, or `${value%%%%%s*}` keeps the first field",
+		"`mapfile -t fields < <(dybatpho::split \"${value}\" '<delimiter>')` splits on a delimiter of several characters and keeps empty fields")
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		switch n := node.(type) {
 		case *syntax.BinaryCmd:
