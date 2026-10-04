@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   change any local declared before it. Files are now parsed before any rule
   runs, so a rule can follow a call into the file that defines the function.
 
+- `BSG016` warns about a variable a function sets without `local` in the ways
+  `BSG011` does not see: a `for` loop variable, an arithmetic assignment such
+  as `((count++))`, and the variable `read`, `mapfile`, `readarray`,
+  `printf -v` or `getopts` fills. It leaks out of the function and overwrites a
+  caller's variable of the same name. An UPPERCASE name, `declare -g`, or an
+  `@set` tag in the function comment marks a variable set on purpose.
+
 ## [0.3.2]
 
 ### Added

@@ -31,6 +31,7 @@ function _main {
 
   local -a tools=()
   readarray -t tools < <(printf '%s\n' "${list}")
+  local tool
   for tool in "${tools[@]}"; do
     dybatpho::info "Installing ${tool}"
   done
