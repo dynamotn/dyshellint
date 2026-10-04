@@ -102,6 +102,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flavour first (a `--version` call, `uname`, or a name such as `gnu`, `bsd`
   or `busybox`) and a file that declares itself Linux-only are left alone.
 
+- `BSG055` warns, in a library file, about a raw `trap` that replaces or
+  clears the EXIT, INT, TERM, HUP or QUIT handler: the calling script's own
+  cleanup is lost. A function that saves the handlers first (`trap -p`, a
+  traps-save helper, or `dybatpho::trap`) to put them back is left alone, as
+  are `trap -p`, `trap -l` and other signals.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
