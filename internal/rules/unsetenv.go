@@ -44,13 +44,14 @@ func checkBareEnvironment(f *File, r *Reporter) {
 	}
 	p := f.project()
 	seen := map[string]bool{}
+	external := externalPrefixes(f, p)
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		pe, ok := node.(*syntax.ParamExp)
 		if !ok || pe.Param == nil || pe.Exp != nil || pe.Excl {
 			return true
 		}
 		name := pe.Param.Value
-		if seen[name] || !upperName.MatchString(name) || shellVariables[name] || strings.HasPrefix(name, "BATS_") || p.Assigned(name) {
+		if seen[name] || !upperName.MatchString(name) || shellVariables[name] || strings.HasPrefix(name, "BATS_") || p.Assigned(name) || hasAnyPrefix(name, external) {
 			return true
 		}
 		seen[name] = true
@@ -58,4 +59,33 @@ func checkBareEnvironment(f *File, r *Reporter) {
 			name, name, name)
 		return true
 	})
+}
+
+// externalPrefixes returns the variable prefixes of libraries the file calls
+// but the run does not include, such as `DYBATPHO_` for `dybatpho::info` when
+// dybatpho itself is not linted: those libraries set their own variables.
+func externalPrefixes(f *File, p *Project) []string {
+	seen := map[string]bool{}
+	var out []string
+	eachCall(f, func(_ *syntax.CallExpr, name string) {
+		i := strings.Index(name, "::")
+		if i <= 0 || p.funcs[name] != nil {
+			return
+		}
+		prefix := strings.ToUpper(name[:i]) + "_"
+		if !seen[prefix] {
+			seen[prefix] = true
+			out = append(out, prefix)
+		}
+	})
+	return out
+}
+
+func hasAnyPrefix(name string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
