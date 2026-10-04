@@ -63,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `for ((i = start; i <= end; i++))` one whose bounds are variables, without a
   process.
 
+- `BSG125` reports `ls` whose output the script reads, inside `$(...)` or at the
+  head of a pipeline: names with spaces, newlines or glob characters break it.
+  `ls` that only shows a listing, and `git ls-files`, are left alone.
+
 ## [0.5.0]
 
 ### Added

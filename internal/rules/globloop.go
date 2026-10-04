@@ -11,12 +11,50 @@ import (
 const sectionWildcards = "Features and Bugs > Wildcard Expansion of Filenames"
 
 func init() {
-	register(Rule{
-		Code:     "BSG093",
-		Section:  sectionWildcards,
-		Severity: lint.SeverityWarning,
-		Doc:      "Check that each match of a glob loop exists, unless `nullglob` is on",
-		Check:    checkGlobLoop,
+	register(
+		Rule{
+			Code:     "BSG093",
+			Section:  sectionWildcards,
+			Severity: lint.SeverityWarning,
+			Doc:      "Check that each match of a glob loop exists, unless `nullglob` is on",
+			Check:    checkGlobLoop,
+		},
+		Rule{
+			Code:     "BSG125",
+			Section:  sectionWildcards,
+			Severity: lint.SeverityError,
+			Doc:      "Do not parse the output of `ls`: loop over a glob such as `./*`",
+			Check:    checkParsedLs,
+		},
+	)
+}
+
+// checkParsedLs reports `ls` whose output the script reads: inside a command
+// substitution, or at the head of a pipeline. `ls` that only shows a listing
+// to the user is left alone.
+func checkParsedLs(f *File, r *Reporter) {
+	const msg = "the output of `ls` is text for people: a name with a space or a newline splits, and a glob character expands; loop over `./*` and test each match, or use `find -print0`"
+	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.CmdSubst:
+			for _, stmt := range n.Stmts {
+				if call := firstCall(stmt); callName(call) == "ls" {
+					r.At(call.Pos(), msg)
+				}
+			}
+		case *syntax.BinaryCmd:
+			if n.Op != syntax.Pipe && n.Op != syntax.PipeAll {
+				return true
+			}
+			// Only the head of a pipeline: `a | b | c` holds `a | b` on its left.
+			if inner, ok := n.X.Cmd.(*syntax.BinaryCmd); ok && (inner.Op == syntax.Pipe || inner.Op == syntax.PipeAll) {
+				return true
+			}
+			if call, ok := n.X.Cmd.(*syntax.CallExpr); ok && callName(call) == "ls" {
+				r.At(call.Pos(), msg)
+			}
+		}
+		return true
 	})
 }
 
