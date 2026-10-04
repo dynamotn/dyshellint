@@ -29,6 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller's variable of the same name. An UPPERCASE name, `declare -g`, or an
   `@set` tag in the function comment marks a variable set on purpose.
 
+- `BSG047` warns about a call inside `$(...)` to a function that can stop the
+  script with `dybatpho::die` or `exit`, directly or through any function it
+  calls, followed across every file of the run. Inside a substitution the
+  refusal only ends the subshell, so the caller carries on, usually with an
+  empty value. A plain assignment whose status is read on the spot — in an
+  `if`, after `!`, or followed by `|| return`, `|| exit`, `|| dybatpho::die`,
+  `|| status=$?` or a `|| { ... }` block — is left alone; a substitution used as
+  an argument, in a test or in `local x=$(...)` loses the status entirely and
+  is always reported. The argument checks (`dybatpho::expect_args` and its
+  kin) are not counted, as they refuse a call written wrong, not its input.
+
 ## [0.3.2]
 
 ### Added
