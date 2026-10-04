@@ -36,6 +36,10 @@ func checkDryRunBypass(f *File, r *Reporter) {
 	if !strings.Contains(src, "DRY_RUN") && !strings.Contains(src, "dybatpho::dry_run") {
 		return
 	}
+	// The file that implements the dry run mentions it without offering one.
+	if strings.Contains(src, "function dybatpho::dry_run") {
+		return
+	}
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		// A private helper of a library runs for a public function, which is
 		// where the dry run is decided.
