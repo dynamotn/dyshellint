@@ -103,7 +103,9 @@ func guardedVars(decl *syntax.FuncDecl) map[string]bool {
 				return true
 			})
 		case *syntax.Assign:
-			if n.Name != nil && n.Value != nil && tempMaker.MatchString(wordSource(n.Value)) {
+			// A value with literal text in it, such as `"${dir}/.partial"`, is
+			// never empty, and neither is a fresh temporary path.
+			if n.Name != nil && n.Value != nil && (tempMaker.MatchString(wordSource(n.Value)) || hasLiteralText(n.Value)) {
 				out[n.Name.Value] = true
 			}
 		case *syntax.CallExpr:
@@ -122,4 +124,26 @@ func guardedVars(decl *syntax.FuncDecl) map[string]bool {
 		return true
 	})
 	return out
+}
+
+// hasLiteralText reports whether a word has text of its own besides its
+// expansions, which keeps its value from ever being empty.
+func hasLiteralText(word *syntax.Word) bool {
+	found := false
+	syntax.Walk(word, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.Lit:
+			if n.Value != "" {
+				found = true
+			}
+		case *syntax.SglQuoted:
+			if n.Value != "" {
+				found = true
+			}
+		case *syntax.ParamExp, *syntax.CmdSubst:
+			return false
+		}
+		return !found
+	})
+	return found
 }

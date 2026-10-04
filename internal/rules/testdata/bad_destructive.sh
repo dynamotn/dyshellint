@@ -19,4 +19,6 @@ function _clean {
   [[ -n "${checked}" ]] || return 1
   rm -rf -- "${checked}"
   rm -f "${dir}/one.o"
+  local partial="${dir}/.partial"
+  rm -rf -- "${partial}"
 }
