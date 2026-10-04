@@ -21,6 +21,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `bash -s` with `declare -f` are left alone. The call is found under
   `timeout`, `nohup`, `command` and `exec` too.
 
+### Changed
+
+- `BSG126` also points a script that loads dybatpho at `dybatpho::split`, which
+  takes a delimiter of several characters as it is and keeps empty fields.
+
+- `BSG056` also points a script that loads dybatpho at `dybatpho::curl_do`, which turns an HTTP error into a non-zero status.
+
+- `BSG107` also points a script that loads dybatpho at `dybatpho::curl_timeout`, which sets both limits for one request.
+
+- `BSG117` also points a script that loads dybatpho at `dybatpho::retry` and `dybatpho::curl_do`, which back off between attempts and stop.
+
+- `BSG118` also points a script that loads dybatpho at `dybatpho::run_with_timeout`, which bounds the call and returns 124 on a timeout.
+
+- `BSG081` also points a script that loads dybatpho at `dybatpho::curl_auth_bearer` and `dybatpho::secret_register`, which keep a token off the command line and out of the logs.
+
+- `BSG086` also points a script that loads dybatpho at `dybatpho::json_object`, which escapes every value.
+
+- `BSG098` also points a script that loads dybatpho at `dybatpho::confirm`, which asks only on a terminal.
+
+- `BSG112` also points a script that loads dybatpho at `dybatpho::background_run` and `dybatpho::wait_all`, which wait for every job and count the failures.
+
+- `BSG089` also points a script that loads dybatpho at `dybatpho::safe_rm`, which refuses an empty, protected or out-of-root path.
+
+- `BSG087` also points a script that loads dybatpho at `dybatpho::is int`, which accepts a decimal integer without a leading zero.
+
+- `BSG083` also points a script that loads dybatpho at `dybatpho::date_parse`, `dybatpho::date_format`, `dybatpho::file_replace`, `dybatpho::file_mtime`, `dybatpho::file_size`, `dybatpho::semver_sort` or `dybatpho::create_temp`, by the command at fault.
+
 ## [0.6.0]
 
 ### Added

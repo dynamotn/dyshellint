@@ -143,7 +143,7 @@ func checkTightRetry(f *File, r *Reporter) {
 			})
 		}
 		if !sleeps {
-			r.At(loop.Pos(), "this loop retries `%s` with no pause, hammering a service that is already failing; sleep between attempts, longer each time, and stop after a few", network)
+			reportWithDybatpho(f, r, loop.Pos(), "`dybatpho::retry <times> '<command>'` waits longer after each attempt and stops after the last, and `dybatpho::curl_do` retries a request on its own", "this loop retries `%s` with no pause, hammering a service that is already failing; sleep between attempts, longer each time, and stop after a few", network)
 		}
 		return true
 	})
@@ -159,7 +159,7 @@ func checkSSHTimeout(f *File, r *Reporter) {
 				return
 			}
 		}
-		r.At(call.Pos(), "`%s` waits for an unreachable host as long as the kernel does, and for a password forever; add `-o ConnectTimeout=10 -o BatchMode=yes`, and run it under `timeout` to bound the whole call", name)
+		reportWithDybatpho(f, r, call.Pos(), "`dybatpho::run_with_timeout <seconds> ssh ...` bounds the call, returns 124 on a timeout, and works where there is no `timeout`", "`%s` waits for an unreachable host as long as the kernel does, and for a password forever; add `-o ConnectTimeout=10 -o BatchMode=yes`, and run it under `timeout` to bound the whole call", name)
 	})
 }
 

@@ -106,7 +106,7 @@ func checkCurlWithoutFail(f *File, r *Reporter) {
 			hasLong(call, "--version") || checksHTTPCode(call) {
 			return
 		}
-		r.At(call.Pos(), "`curl` exits 0 on a 404 or a 500 and hands back the error page as if it were the answer; add `--fail`, or read `-w '%%{http_code}'` and check it")
+		reportWithDybatpho(f, r, call.Pos(), "`dybatpho::curl_do` turns an HTTP error into a non-zero status, and retries only a request that may still succeed", "`curl` exits 0 on a 404 or a 500 and hands back the error page as if it were the answer; add `--fail`, or read `-w '%%{http_code}'` and check it")
 	})
 }
 
