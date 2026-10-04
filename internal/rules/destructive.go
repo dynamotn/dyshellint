@@ -37,7 +37,7 @@ func checkUnguardedDestruction(f *File, r *Reporter) {
 					continue
 				}
 				if v := unguardedVar(arg, guarded); v != "" {
-					r.At(arg.Pos(), "`%s` runs recursively on a path built from %q, which nothing checks; when it is empty the command reaches `/` or the current directory. Test it with `[[ -n \"${%s}\" ]]`, or write `${%s:?}`",
+					reportWithDybatpho(f, r, arg.Pos(), "`dybatpho::safe_rm -r` refuses an empty or protected path, and one outside `DYBATPHO_SAFE_ROOTS`", "`%s` runs recursively on a path built from %q, which nothing checks; when it is empty the command reaches `/` or the current directory. Test it with `[[ -n \"${%s}\" ]]`, or write `${%s:?}`",
 						name, v, v, v)
 					return
 				}

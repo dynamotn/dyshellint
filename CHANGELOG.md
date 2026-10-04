@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG112` also points a script that loads dybatpho at `dybatpho::background_run` and `dybatpho::wait_all`, which wait for every job and count the failures.
 
+- `BSG089` also points a script that loads dybatpho at `dybatpho::safe_rm`, which refuses an empty, protected or out-of-root path.
+
 ## [0.6.0]
 
 ### Added
