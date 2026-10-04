@@ -212,6 +212,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answer. A call that asks for `-w '%{http_code}'` to check the status itself
   is left alone.
 
+- `BSG095` warns, in a file that offers a dry run (it mentions `DRY_RUN` or
+  `dybatpho::dry_run`), about a function that changes something without
+  checking `DRY_RUN` or going through `dybatpho::dry_run`: `rm`, `mv`, `cp` to
+  a destination, `install`, `ln -s`, `wget`, `curl -o`, a package manager,
+  a mutating `systemctl` verb, or `chezmoi apply`.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
