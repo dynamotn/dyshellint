@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BSG126` also points a script that loads dybatpho at `dybatpho::split`, which
   takes a delimiter of several characters as it is and keeps empty fields.
 
+- `BSG056` also points a script that loads dybatpho at `dybatpho::curl_do`, which turns an HTTP error into a non-zero status.
+
 ## [0.6.0]
 
 ### Added
