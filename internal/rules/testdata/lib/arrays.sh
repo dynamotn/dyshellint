@@ -40,3 +40,16 @@ function arrays::seeded {
   local -a modes=(fast)
   printf '%s\n' "${modes[@]}"
 }
+
+#######################################
+# @description Fall back to a default when the copy came out empty
+# @arg $@ string Arguments to copy
+#######################################
+function arrays::defaulted {
+  local -a targets=()
+  targets=("$@")
+  if ((${#targets[@]} == 0)); then
+    targets=(.)
+  fi
+  printf '%s\n' "${targets[@]}"
+}

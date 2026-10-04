@@ -116,21 +116,62 @@ func filledAt(decl *syntax.FuncDecl, arrays map[string]bool) map[string]syntax.P
 	if !ok {
 		return out
 	}
-	for _, stmt := range block.Stmts {
-		call, ok := stmt.Cmd.(*syntax.CallExpr)
-		if !ok || len(call.Args) > 0 {
-			continue
+	mark := func(name string, at syntax.Pos) {
+		if _, seen := out[name]; !seen {
+			out[name] = at
 		}
-		for _, assign := range call.Assigns {
-			if assign.Name == nil || !arrays[assign.Name.Value] || !hasSureElement(assign.Array) {
-				continue
+	}
+	for _, stmt := range block.Stmts {
+		switch cmd := stmt.Cmd.(type) {
+		case *syntax.CallExpr:
+			for _, name := range filledBy(cmd, arrays) {
+				mark(name, stmt.End())
 			}
-			if _, seen := out[assign.Name.Value]; !seen {
-				out[assign.Name.Value] = stmt.End()
+		case *syntax.IfClause:
+			// `if ((${#a[@]} == 0)); then a=(default); fi` leaves `a` with at
+			// least the default whichever way the test goes.
+			for _, then := range cmd.Then {
+				call, ok := then.Cmd.(*syntax.CallExpr)
+				if !ok {
+					continue
+				}
+				for _, name := range filledBy(call, arrays) {
+					if testsLength(cmd.Cond, name) {
+						mark(name, stmt.End())
+					}
+				}
 			}
 		}
 	}
 	return out
+}
+
+// filledBy returns the arrays a plain assignment gives at least one element.
+func filledBy(call *syntax.CallExpr, arrays map[string]bool) []string {
+	if len(call.Args) > 0 {
+		return nil
+	}
+	var names []string
+	for _, assign := range call.Assigns {
+		if assign.Name != nil && arrays[assign.Name.Value] && hasSureElement(assign.Array) {
+			names = append(names, assign.Name.Value)
+		}
+	}
+	return names
+}
+
+// testsLength reports whether a condition reads `${#name[@]}`.
+func testsLength(cond []*syntax.Stmt, name string) bool {
+	found := false
+	for _, stmt := range cond {
+		syntax.Walk(stmt, func(node syntax.Node) bool {
+			if pe, ok := node.(*syntax.ParamExp); ok && pe.Length && pe.Param != nil && pe.Param.Value == name {
+				found = true
+			}
+			return !found
+		})
+	}
+	return found
 }
 
 // hasSureElement reports whether an array literal yields at least one element
