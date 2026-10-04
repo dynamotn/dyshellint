@@ -33,7 +33,7 @@ func checkUnguardedPrompt(f *File, r *Reporter) {
 		}
 		call, ok := stmt.Cmd.(*syntax.CallExpr)
 		if !ok || callName(call) != "read" || len(stmt.Redirs) > 0 || hasFlag(call, 'u') || hasFlag(call, 't') ||
-			hasFlag(call, 'n') || hasFlag(call, 'N') {
+			hasFlag(call, 'n') || hasFlag(call, 'N') || hasArrayArgument(call) {
 			// A one-key read is the inside of a menu or a key loop, whose
 			// caller has already made sure there is a terminal.
 			return true
@@ -80,4 +80,15 @@ func readsStream(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
 		}
 		return false
 	}
+}
+
+// hasArrayArgument reports whether a call takes options from an array, which
+// hides whether a timeout is among them.
+func hasArrayArgument(call *syntax.CallExpr) bool {
+	for _, arg := range call.Args[1:] {
+		if pe := wordParam(arg); pe != nil && pe.Index != nil {
+			return true
+		}
+	}
+	return false
 }

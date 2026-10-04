@@ -48,3 +48,14 @@ function _prompt {
   read -rsn1 answer
   printf '%s\n' "${answer}"
 }
+
+#######################################
+# @description Read with options kept in an array
+# @noargs
+#######################################
+function _proceed_with_options {
+  local answer
+  local -a options=(-r -t 5)
+  read "${options[@]}" answer || true
+  printf '%s\n' "${answer}"
+}
