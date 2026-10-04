@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"strings"
+
 	"mvdan.cc/sh/v3/syntax"
 
 	"gitlab.com/dynamo-tools/dyshellint/internal/lint"
@@ -81,6 +83,41 @@ func runsStdin(call *syntax.CallExpr) bool {
 	}
 	if name == "source" || name == "." {
 		return len(call.Args) > 1 && wordLiteral(call.Args[1]) == "/dev/stdin"
+	}
+	return false
+}
+
+func init() {
+	register(Rule{
+		Code:     "BSG056",
+		Section:  sectionNetwork,
+		Severity: lint.SeverityWarning,
+		Doc:      "Make `curl` fail on an HTTP error with `--fail`, or check `%{http_code}`",
+		Check:    checkCurlWithoutFail,
+	})
+}
+
+func checkCurlWithoutFail(f *File, r *Reporter) {
+	eachCall(f, func(call *syntax.CallExpr, name string) {
+		if name != "curl" || hasFlag(call, 'f') || hasLong(call, "--fail") || hasLong(call, "--fail-with-body") ||
+			hasLong(call, "--version") || checksHTTPCode(call) {
+			return
+		}
+		r.At(call.Pos(), "`curl` exits 0 on a 404 or a 500 and hands back the error page as if it were the answer; add `--fail`, or read `-w '%%{http_code}'` and check it")
+	})
+}
+
+// checksHTTPCode reports whether a call asks curl for the status code, which
+// the caller then checks itself.
+func checksHTTPCode(call *syntax.CallExpr) bool {
+	for i, arg := range call.Args[1:] {
+		lit := wordLiteral(arg)
+		if (lit == "-w" || lit == "--write-out") && i+2 < len(call.Args) {
+			src := wordSource(call.Args[i+2])
+			if strings.Contains(src, "http_code") || strings.Contains(src, "response_code") {
+				return true
+			}
+		}
 	}
 	return false
 }

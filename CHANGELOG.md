@@ -207,6 +207,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sends runs, and only part of it when the connection drops. Piping into a
   program that reads data, such as `jq`, is left alone.
 
+- `BSG056` warns about `curl` without `-f`, `--fail` or `--fail-with-body`:
+  it exits 0 on a 404 or a 500 and hands back the error page as if it were the
+  answer. A call that asks for `-w '%{http_code}'` to check the status itself
+  is left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
