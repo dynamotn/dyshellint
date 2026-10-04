@@ -65,6 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rules and the rules written for tests run on them; the header, shebang and
   layout rules describe scripts and stay off.
 
+- `BSG061` reports, in a `.bats` file, `assert_output`, `refute_output`,
+  `assert_stderr` or `refute_stderr` fed a here document or a here string
+  without `-`. bats-assert reads its expectation from standard input only when
+  given `-`; without it the assertion ignores the input and passes on any
+  non-empty output.
+
 ## [0.3.2]
 
 ### Added

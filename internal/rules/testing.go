@@ -5,19 +5,77 @@ import (
 	"path/filepath"
 	"strings"
 
+	"mvdan.cc/sh/v3/syntax"
+
 	"gitlab.com/dynamo-tools/dyshellint/internal/lint"
 )
 
 const sectionTesting = "Testing"
 
+const sectionStrictAssertions = "Testing > Strict Output Assertions"
+
 func init() {
-	register(Rule{
-		Code:     "BSG060",
-		Section:  sectionTesting,
-		Severity: lint.SeverityError,
-		Doc:      "Give every library a matching `test/<area>.bats`",
-		Check:    checkLibraryHasTest,
+	register(
+		Rule{
+			Code:     "BSG060",
+			Section:  sectionTesting,
+			Severity: lint.SeverityError,
+			Doc:      "Give every library a matching `test/<area>.bats`",
+			Check:    checkLibraryHasTest,
+		},
+		Rule{
+			Code:     "BSG061",
+			Section:  sectionStrictAssertions,
+			Severity: lint.SeverityError,
+			Doc:      "Pass `-` to an output assertion that reads its expectation from a here document",
+			Check:    checkStdinAssertion,
+			Bats:     true,
+		},
+	)
+}
+
+// stdinAssertions are the bats-assert helpers that compare against standard
+// input only when they are given `-`; without it they ignore the input and
+// only check that there was output at all.
+var stdinAssertions = map[string]bool{
+	"assert_output": true, "refute_output": true,
+	"assert_stderr": true, "refute_stderr": true,
+}
+
+func checkStdinAssertion(f *File, r *Reporter) {
+	if !f.Bats {
+		return
+	}
+	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+		stmt, ok := node.(*syntax.Stmt)
+		if !ok {
+			return true
+		}
+		call, ok := stmt.Cmd.(*syntax.CallExpr)
+		if !ok || !stdinAssertions[callName(call)] || !readsStdinDoc(stmt) {
+			return true
+		}
+		for _, arg := range call.Args[1:] {
+			if wordLiteral(arg) == "-" {
+				return true
+			}
+		}
+		r.At(call.Pos(), "`%s` ignores the here document unless it is given `-`, and then only checks that there was output; write `%s -`",
+			callName(call), callName(call))
+		return true
 	})
+}
+
+// readsStdinDoc reports whether a statement feeds a here document or a here
+// string to its command.
+func readsStdinDoc(stmt *syntax.Stmt) bool {
+	for _, redir := range stmt.Redirs {
+		switch redir.Op {
+		case syntax.Hdoc, syntax.DashHdoc, syntax.WordHdoc:
+			return true
+		}
+	}
+	return false
 }
 
 func checkLibraryHasTest(f *File, r *Reporter) {
