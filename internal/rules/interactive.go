@@ -53,7 +53,7 @@ func checkUnguardedPrompt(f *File, r *Reporter) {
 		if ttyCheck.Match(scope) {
 			return true
 		}
-		r.At(call.Pos(), "`read` waits for someone to type, which hangs in CI, cron or a pipe; check for a terminal first (`[[ -t 0 ]]` or `dybatpho::is_interactive`), or give it `-t` seconds")
+		reportWithDybatpho(f, r, call.Pos(), "`dybatpho::confirm \"<question>\"` asks only on a terminal, and answers no without one", "`read` waits for someone to type, which hangs in CI, cron or a pipe; check for a terminal first (`[[ -t 0 ]]` or `dybatpho::is_interactive`), or give it `-t` seconds")
 		return true
 	})
 }

@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG086` also points a script that loads dybatpho at `dybatpho::json_object`, which escapes every value.
 
+- `BSG098` also points a script that loads dybatpho at `dybatpho::confirm`, which asks only on a terminal.
+
 ## [0.6.0]
 
 ### Added
