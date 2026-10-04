@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--jobs N` sets how many files ShellCheck and shfmt check at once. It
+  defaults to one per CPU.
+
+### Changed
+
+- Linting a directory with many files is several times faster. ShellCheck and
+  shfmt now check the files in parallel, largest first, rather than in one
+  ShellCheck process on a single core. On the dybatpho library a run drops from
+  about 45 seconds to about 7.
+- A directory is walked without the files git ignores there, so a generated
+  build such as a `dist/` bundle is no longer linted, and no longer floods the
+  report. A file named on the command line is still checked even when it is
+  ignored.
+
 ## [0.3.1]
 
 ### Fixed

@@ -24,7 +24,9 @@ STDERR and reports everything else.
 ## Use
 
 ```sh
-# The whole repository, or one file
+# The whole repository, or one file. A directory is walked without what git
+# ignores there, such as a generated bundle; a file named outright is checked
+# even when it is ignored.
 dyshellint ./scripts
 dyshellint ./scripts/deploy.sh
 
@@ -47,6 +49,7 @@ dyshellint --list-rules
 | `--warnings-as-errors` | Fail the run on ⚠️ CONSIDER findings too |
 | `--no-shellcheck`, `--no-shfmt` | Skip an external tool |
 | `--shellcheck`, `--shfmt` | Point at another binary |
+| `--jobs N` | Files ShellCheck and shfmt check at once, one per CPU by default |
 | `--stdin-filename NAME` | Name to report `-` under |
 | `--list-rules` | Print every rule and exit |
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -46,6 +47,7 @@ type options struct {
 	listRules        bool
 	showVersion      bool
 	stdinFilename    string
+	jobs             int
 }
 
 func run(args []string, stdout, stderr *os.File) error {
@@ -63,6 +65,7 @@ func run(args []string, stdout, stderr *os.File) error {
 	flags.BoolVar(&opts.warningsAsErrors, "warnings-as-errors", false, "fail the run on warnings too")
 	flags.BoolVar(&opts.listRules, "list-rules", false, "print every rule and exit")
 	flags.BoolVar(&opts.showVersion, "version", false, "print the version and exit")
+	flags.IntVar(&opts.jobs, "jobs", runtime.NumCPU(), "how many files shellcheck and shfmt check at once")
 	flags.StringVar(&opts.stdinFilename, "stdin-filename", "stdin.sh", "name to report findings under when reading `-`")
 	flags.Usage = func() {
 		fmt.Fprintln(stderr, "usage: dyshellint [options] <path>...")
@@ -170,7 +173,7 @@ func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Find
 		findings = append(findings, rules.Run(file, selected)...)
 	}
 	if !opts.noShellcheck {
-		checker := lint.ShellCheck{Binary: opts.shellcheckBinary}
+		checker := lint.ShellCheck{Binary: opts.shellcheckBinary, Jobs: opts.jobs}
 		// A buffer read from standard input lives in a temporary directory, so
 		// the configuration of the repository it belongs to has to be named.
 		if len(sources) == 1 && sources[0].Disk != sources[0].Name {
@@ -187,7 +190,7 @@ func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Find
 		findings = append(findings, filterExternal(rename(sources, external), opts)...)
 	}
 	if !opts.noShfmt {
-		external, err := lint.Shfmt{Binary: opts.shfmtBinary}.Run(paths)
+		external, err := lint.Shfmt{Binary: opts.shfmtBinary, Jobs: opts.jobs}.Run(paths)
 		if err != nil {
 			if !errors.Is(err, lint.ErrToolMissing) {
 				return nil, err

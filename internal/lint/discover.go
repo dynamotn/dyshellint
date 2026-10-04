@@ -2,13 +2,16 @@ package lint
 
 import (
 	"bufio"
+	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
 // Discover expands the given paths into the list of shell files to check. A
-// file named on the command line is taken as given; a directory is walked.
+// file named on the command line is taken as given; a directory is walked,
+// leaving out what git ignores there, such as a generated bundle.
 func Discover(paths []string) ([]string, error) {
 	var files []string
 	seen := map[string]bool{}
@@ -29,6 +32,7 @@ func Discover(paths []string) ([]string, error) {
 			add(path)
 			continue
 		}
+		kept := notIgnored(path)
 		err = filepath.WalkDir(path, func(name string, entry os.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -37,6 +41,9 @@ func Discover(paths []string) ([]string, error) {
 				if name != path && skipDir(name) {
 					return filepath.SkipDir
 				}
+				return nil
+			}
+			if kept != nil && !kept[filepath.Clean(name)] {
 				return nil
 			}
 			if IsShellFile(name) {
@@ -49,6 +56,23 @@ func Discover(paths []string) ([]string, error) {
 		}
 	}
 	return files, nil
+}
+
+// notIgnored returns the files under dir that git does not ignore: tracked
+// ones, and untracked ones no ignore rule matches. It returns nil outside a
+// repository, or without git, and then nothing is left out.
+func notIgnored(dir string) map[string]bool {
+	out, err := exec.Command("git", "-C", dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	if err != nil {
+		return nil
+	}
+	kept := map[string]bool{}
+	for _, name := range bytes.Split(out, []byte{0}) {
+		if len(name) > 0 {
+			kept[filepath.Join(dir, string(name))] = true
+		}
+	}
+	return kept
 }
 
 // skipDir keeps the walk inside this repository: `.git` itself, and any nested

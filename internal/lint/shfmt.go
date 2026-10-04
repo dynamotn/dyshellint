@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -16,6 +17,9 @@ import (
 type Shfmt struct {
 	// Binary is the program to run, `shfmt` unless overridden.
 	Binary string
+	// Jobs is how many files are formatted at once, the number of CPUs when
+	// zero.
+	Jobs int
 }
 
 // Options are the formatting flags the guide implies.
@@ -32,22 +36,20 @@ func (s Shfmt) Run(files []string) ([]Finding, error) {
 	if _, err := exec.LookPath(binary); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrToolMissing, binary)
 	}
-	var findings []Finding
-	for _, file := range files {
-		out, err := exec.Command(binary, append(shfmtOptions, file)...).Output()
+	return eachFile(files, s.Jobs, func(file string) ([]Finding, error) {
+		out, err := exec.Command(binary, slices.Concat(shfmtOptions, []string{file})...).Output()
 		var exitErr *exec.ExitError
 		switch {
 		case err == nil:
-			continue // The file is already formatted.
+			return nil, nil // The file is already formatted.
 		case errors.As(err, &exitErr) && len(out) > 0:
 		case errors.As(err, &exitErr):
 			return nil, fmt.Errorf("run %s on %s: %s", binary, file, strings.TrimSpace(string(exitErr.Stderr)))
 		default:
 			return nil, fmt.Errorf("run %s on %s: %w", binary, file, err)
 		}
-		findings = append(findings, hunkFindings(file, string(out))...)
-	}
-	return findings, nil
+		return hunkFindings(file, string(out)), nil
+	})
 }
 
 // hunkFindings turns a unified diff into one finding per hunk, so the report

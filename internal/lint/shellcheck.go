@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -21,6 +22,9 @@ type ShellCheck struct {
 	// SourceDir is where a `source=` directive is resolved from, for the same
 	// reason.
 	SourceDir string
+	// Jobs is how many files are checked at once, the number of CPUs when
+	// zero.
+	Jobs int
 }
 
 type shellCheckReport struct {
@@ -38,7 +42,9 @@ type shellCheckReport struct {
 // decides whether that is fatal or only worth a note.
 var ErrToolMissing = errors.New("tool not found")
 
-// Run checks every file in one shellcheck invocation.
+// Run checks the files with one shellcheck invocation each, several at a time.
+// A single invocation over many files runs on one core and grows slower than
+// the sum of its parts, since every file drags in the libraries it sources.
 func (s ShellCheck) Run(files []string) ([]Finding, error) {
 	binary := s.Binary
 	if binary == "" {
@@ -47,9 +53,6 @@ func (s ShellCheck) Run(files []string) ([]Finding, error) {
 	if _, err := exec.LookPath(binary); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrToolMissing, binary)
 	}
-	if len(files) == 0 {
-		return nil, nil
-	}
 	args := []string{"--format=json1", "--external-sources"}
 	if s.RCFile != "" {
 		args = append(args, "--rcfile="+s.RCFile)
@@ -57,7 +60,13 @@ func (s ShellCheck) Run(files []string) ([]Finding, error) {
 	if s.SourceDir != "" {
 		args = append(args, "--source-path="+s.SourceDir)
 	}
-	args = append(args, files...)
+	return eachFile(files, s.Jobs, func(file string) ([]Finding, error) {
+		return runShellCheck(binary, slices.Concat(args, []string{file}))
+	})
+}
+
+// runShellCheck runs one shellcheck invocation and translates its findings.
+func runShellCheck(binary string, args []string) ([]Finding, error) {
 	out, err := exec.Command(binary, args...).Output()
 	// shellcheck exits non-zero as soon as it reports something, so the exit
 	// status alone says nothing; only an unparsable body is a real failure.
