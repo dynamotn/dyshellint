@@ -164,9 +164,13 @@ func checkCallerNamedLocals(f *File, r *Reporter) {
 		if !isPublicFunc(decl) || !f.project().WritesCallerName(decl.Name.Value) {
 			return
 		}
+		last, ok := nameHazard(f.project(), decl)
+		if !ok {
+			return
+		}
 		names, at := funcLocals(decl)
 		for _, name := range names {
-			if isPrivateName(name) {
+			if isPrivateName(name) || at[name].After(last) {
 				continue
 			}
 			r.At(at[name], "%q writes to a variable its caller names, so a caller whose variable is called %q gets this local instead; prefix it, as in `__%s_%s`",
@@ -186,4 +190,54 @@ func privatePrefix(f *File, decl *syntax.FuncDecl) string {
 		return f.Namespace + "_" + name
 	}
 	return name
+}
+
+// nameHazard returns the last place a function resolves the variable name its
+// caller passed. A nameref bound in the function resolves the name on every
+// use, so every local counts; a `printf -v` or `read` into the name, or a call
+// that hands the name to a writer, resolves it there and then, so a local
+// declared afterwards cannot be mistaken for the caller's variable.
+func nameHazard(p *Project, decl *syntax.FuncDecl) (syntax.Pos, bool) {
+	fed := fedIndex(decl)
+	var last syntax.Pos
+	found := false
+	mark := func(pos syntax.Pos) {
+		found = true
+		if pos.After(last) {
+			last = pos
+		}
+	}
+	var up map[syntax.Node]syntax.Node
+	syntax.Walk(decl.Body, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.FuncDecl:
+			return false
+		case *syntax.DeclClause:
+			if n.Variant == nil || !strings.Contains(declFlags(n), "n") {
+				return true
+			}
+			for _, arg := range n.Args {
+				if arg.Name != nil && arg.Value != nil && wordLiteral(arg.Value) == "" {
+					mark(decl.Body.End())
+				}
+			}
+		case *syntax.CallExpr:
+			if target := callerNamedTarget(n); target != nil {
+				if up == nil {
+					up = parents(decl.Body)
+				}
+				if !pinnedByCase(n, target, up) {
+					mark(n.Pos())
+				}
+				return true
+			}
+			for position := range p.writers[callName(n)] {
+				if position >= 1 && position < len(n.Args) && argPosition(n.Args[position], fed) >= 1 {
+					mark(n.Pos())
+				}
+			}
+		}
+		return true
+	})
+	return last, found
 }

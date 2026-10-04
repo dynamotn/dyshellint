@@ -95,3 +95,13 @@ function scope::fill_value {
   __scope_fill result
   printf '%s %s\n' "${value}" "${result}"
 }
+
+#######################################
+# @description Hand the caller's name on before declaring any local
+# @arg $1 string Name of the variable to fill
+#######################################
+function scope::fill_first {
+  __scope_fill "$1"
+  local after="late"
+  printf '%s\n' "${after}"
+}
