@@ -197,6 +197,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only word, and the body runs once on a path that does not exist. A file that
   turns on `shopt -s nullglob` or `failglob` is left alone.
 
+- `BSG094` warns about `while read` reading a file, a process substitution or
+  a pipe without `|| [[ -n "${line}" ]]` in its condition: `read` fails on a
+  last line that has no newline, so the loop drops it. A here document, a here
+  string, and `read -d` are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
