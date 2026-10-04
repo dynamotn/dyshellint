@@ -35,6 +35,6 @@ func checkCurlTimeout(f *File, r *Reporter) {
 				return
 			}
 		}
-		r.At(call.Pos(), "`curl` with no time limit waits as long as the server keeps the connection open; add `--connect-timeout` and `--max-time`, or run it under `timeout`")
+		reportWithDybatpho(f, r, call.Pos(), "`dybatpho::curl_timeout <url> <output> <connect> <total>` sets both limits for one request", "`curl` with no time limit waits as long as the server keeps the connection open; add `--connect-timeout` and `--max-time`, or run it under `timeout`")
 	})
 }

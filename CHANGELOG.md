@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG056` also points a script that loads dybatpho at `dybatpho::curl_do`, which turns an HTTP error into a non-zero status.
 
+- `BSG107` also points a script that loads dybatpho at `dybatpho::curl_timeout`, which sets both limits for one request.
+
 ## [0.6.0]
 
 ### Added
