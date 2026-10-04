@@ -126,6 +126,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A caller's array can have gaps in its indexes, and counting to its length
   then reads elements that do not exist; `"${!a[@]}"` walks the real ones.
 
+- `BSG086` warns about a `printf` format or an `echo` argument that builds
+  JSON by putting a raw value between quotes — `"key":"%s"` or
+  `"key":"${value}"` — where a `"`, a `\` or a newline in the value breaks the
+  document. A function that escapes its values (an escaper, `jq`, `yq` or a
+  JSON helper) and numbers printed with `%d` are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
