@@ -191,6 +191,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   variable, `${dir:?}` in the same word, a variable filled by `mktemp` or a
   temporary-file helper, and one passed to a path-safety check are left alone.
 
+- `BSG093` warns about a `for` loop over a glob whose body never checks that
+  the loop variable exists (`-e`, `-f`, `-d`, `-L`, `-r`, `-s`, or
+  `dybatpho::is`): without `nullglob`, a glob matching nothing is the loop's
+  only word, and the body runs once on a path that does not exist. A file that
+  turns on `shopt -s nullglob` or `failglob` is left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
