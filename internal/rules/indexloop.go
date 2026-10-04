@@ -19,6 +19,7 @@ func init() {
 }
 
 func checkCountedIndexLoop(f *File, r *Reporter) {
+	p := f.project()
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		namerefs, built := arrayOrigins(decl)
 		syntax.Walk(decl.Body, func(node syntax.Node) bool {
@@ -36,7 +37,9 @@ func checkCountedIndexLoop(f *File, r *Reporter) {
 					return true
 				}
 				name := pe.Param.Value
-				if !namerefs[name] && (built[name] || shellVariables[name]) {
+				// A global the run assigns is built by the same code; a nameref, or
+				// an array nothing here builds, comes from a caller.
+				if !namerefs[name] && (built[name] || shellVariables[name] || p.Assigned(name)) {
 					return true
 				}
 				r.At(pe.Pos(), "%q comes from the caller, and an array with a gap in its indexes makes `${%s[i]}` unset for some i below `${#%s[@]}`; walk `\"${!%s[@]}\"` instead",

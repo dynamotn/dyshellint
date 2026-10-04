@@ -3,6 +3,8 @@
 # @description An array a caller passed by name can be sparse, and counting up
 #   to its length then reads indexes that do not exist.
 
+INDEXLOOP_QUEUE=(a b c)
+
 #######################################
 # @description Join a caller's array by counting its indexes
 # @arg $1 string Name of the array
@@ -35,5 +37,16 @@ function indexloop::stack {
   local __indexloop_stack_frame
   for ((__indexloop_stack_frame = 1; __indexloop_stack_frame < ${#FUNCNAME[@]}; __indexloop_stack_frame++)); do
     printf '%s\n' "${FUNCNAME[__indexloop_stack_frame]}"
+  done
+}
+
+#######################################
+# @description Walk a queue the library builds itself
+# @noargs
+#######################################
+function indexloop::queue {
+  local __indexloop_queue_i
+  for ((__indexloop_queue_i = 0; __indexloop_queue_i < ${#INDEXLOOP_QUEUE[@]}; __indexloop_queue_i++)); do
+    printf '%s\n' "${INDEXLOOP_QUEUE[__indexloop_queue_i]}"
   done
 }
