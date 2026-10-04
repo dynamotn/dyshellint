@@ -47,6 +47,16 @@ var gnuOnly = map[string][]gnuOption{
 // before choosing an option.
 var flavourProbe = regexp.MustCompile(`--version|(?i:gnu|bsd|busybox|darwin|macos|flavou?r|uname|is_linux|is_macos|goos)`)
 
+// dybatphoPortable names the dybatpho helper that does the work of a GNU-only
+// option on every platform, by the command that carries the option.
+var dybatphoPortable = map[string]string{
+	"date":   "`dybatpho::date_parse` and `dybatpho::date_format` pick the flags of this system's `date`",
+	"sed":    "`dybatpho::file_replace` rewrites a file in place without `sed -i`",
+	"stat":   "`dybatpho::file_mtime` and `dybatpho::file_size` ask `stat` in the form this system knows",
+	"sort":   "`dybatpho::semver_sort` orders versions the same way everywhere",
+	"mktemp": "`dybatpho::create_temp <var> <suffix>` takes a suffix and cleans the file up",
+}
+
 // linuxOnly matches a comment declaring that a file runs on Linux alone.
 var linuxOnly = regexp.MustCompile(`(?i)linux[- ]only`)
 
@@ -69,8 +79,12 @@ func checkGnuOnlyFlags(f *File, r *Reporter) {
 					return
 				}
 				if opt, ok := matchGnuOption(lit, options); ok {
-					r.At(arg.Pos(), "`%s %s` exists only in the GNU tools, so the call fails on macOS, the BSDs and BusyBox; use a portable form, or probe for the flavour first",
-						name, opt)
+					const msg = "`%s %s` exists only in the GNU tools, so the call fails on macOS, the BSDs and BusyBox; use a portable form, or probe for the flavour first"
+					if advice, ok := dybatphoPortable[name]; ok {
+						reportWithDybatpho(f, r, arg.Pos(), advice, msg, name, opt)
+					} else {
+						r.At(arg.Pos(), msg, name, opt)
+					}
 					return
 				}
 			}
