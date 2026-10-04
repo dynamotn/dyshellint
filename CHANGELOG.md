@@ -150,6 +150,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when no file of the run clears `GIT_DIR` and its kin, so that run from a git
   hook every git call lands in the repository being committed to.
 
+- `BSG088` reports `((x++))`, `((x--))` or a comma list ending in one, run as
+  a statement in a file under `set -e` or using dybatpho: the expression's
+  value is the old one, so the step fails when it was 0 and the script ends.
+  A step used as a condition, after `!`, or in an `&&`/`||` list, `((++x))`
+  and `x=$((x + 1))` are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
