@@ -61,3 +61,17 @@ function __scope_fill {
   local value="private"
   ref="${value}"
 }
+
+#######################################
+# @description Set one of its own settings by name, which a case arm pins down
+# @arg $1 string Setting name
+# @arg $2 string Value
+#######################################
+function scope::set_setting {
+  local name="$1" min="" max=""
+  case "${name}" in
+    min | max) printf -v "${name}" '%s' "$2" ;;
+    *) return 1 ;;
+  esac
+  printf '%s %s\n' "${min}" "${max}"
+}

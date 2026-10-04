@@ -24,8 +24,10 @@ func init() {
 
 // writesCallerName reports whether a function writes to a variable whose name
 // its caller chose: a nameref bound to an expansion, `printf -v`, `read`,
-// `mapfile` or `readarray` into a name that is not a literal.
+// `mapfile` or `readarray` into a name that is not a literal. A name a `case`
+// arm has already pinned to literal words is the function's own choice.
 func writesCallerName(decl *syntax.FuncDecl) bool {
+	var up map[syntax.Node]syntax.Node
 	found := false
 	syntax.Walk(decl.Body, func(node syntax.Node) bool {
 		if found {
@@ -44,28 +46,62 @@ func writesCallerName(decl *syntax.FuncDecl) bool {
 				}
 			}
 		case *syntax.CallExpr:
-			found = intoCallerName(n)
+			target := callerNamedTarget(n)
+			if target == nil {
+				return true
+			}
+			if up == nil {
+				up = parents(decl.Body)
+			}
+			found = !pinnedByCase(n, target, up)
 		}
 		return true
 	})
 	return found
 }
 
-// intoCallerName reports whether a builtin call stores into a variable named by
-// an expansion rather than by a literal.
-func intoCallerName(call *syntax.CallExpr) bool {
+// callerNamedTarget returns the expansion a builtin stores into, when the
+// variable is named by an expansion rather than by a literal.
+func callerNamedTarget(call *syntax.CallExpr) *syntax.ParamExp {
 	switch callName(call) {
 	case "printf":
 		for i := 1; i+1 < len(call.Args); i++ {
 			if wordLiteral(call.Args[i]) == "-v" {
-				return wordParam(call.Args[i+1]) != nil
+				return wordParam(call.Args[i+1])
 			}
 		}
 	case "read", "mapfile", "readarray":
-		if len(call.Args) < 2 {
+		if len(call.Args) >= 2 {
+			return wordParam(call.Args[len(call.Args)-1])
+		}
+	}
+	return nil
+}
+
+// pinnedByCase reports whether a call sits in a `case` arm over the same
+// variable whose patterns are all literal names, as in
+// `case "${name}" in min | max) printf -v "${name}" ...`: the target can then
+// only be one of those names.
+func pinnedByCase(call *syntax.CallExpr, target *syntax.ParamExp, up map[syntax.Node]syntax.Node) bool {
+	for n := up[call]; n != nil; n = up[n] {
+		item, ok := n.(*syntax.CaseItem)
+		if !ok {
+			continue
+		}
+		clause, ok := up[item].(*syntax.CaseClause)
+		if !ok {
 			return false
 		}
-		return wordParam(call.Args[len(call.Args)-1]) != nil
+		subject := wordParam(clause.Word)
+		if subject == nil || subject.Param == nil || target.Param == nil || subject.Param.Value != target.Param.Value {
+			return false
+		}
+		for _, pattern := range item.Patterns {
+			if !isVarName(wordLiteral(pattern)) {
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }
