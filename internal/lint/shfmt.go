@@ -60,6 +60,10 @@ func (s Shfmt) Run(files []string) ([]Finding, error) {
 		case err == nil:
 			return nil, nil // The file is already formatted.
 		case errors.As(err, &exitErr) && len(out) > 0:
+		case errors.As(err, &exitErr) && strings.HasPrefix(string(exitErr.Stderr), file+":"):
+			// A file shfmt cannot parse is already reported as a syntax error by
+			// the parser of the rules; one such file must not end the whole run.
+			return nil, nil
 		case errors.As(err, &exitErr):
 			return nil, fmt.Errorf("run %s on %s: %s", binary, file, strings.TrimSpace(string(exitErr.Stderr)))
 		default:

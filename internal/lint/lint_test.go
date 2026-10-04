@@ -128,3 +128,27 @@ func TestShfmtReportsUnderForcedColour(t *testing.T) {
 		t.Errorf("got %v, want one finding", findings)
 	}
 }
+
+func TestShfmtSkipsAFileItCannotParse(t *testing.T) {
+	if _, err := exec.LookPath("shfmt"); err != nil {
+		t.Skip("shfmt is not installed")
+	}
+	dir := t.TempDir()
+	broken := filepath.Join(dir, "broken.sh")
+	tidy := filepath.Join(dir, "tidy.sh")
+	if err := os.WriteFile(broken, []byte("m=([a.b]=1)\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tidy, []byte("if true; then\n\techo hi\nfi\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The parse error belongs to the rules' own parser; shfmt must not end the
+	// run on it, and must still report the file it can read.
+	findings, err := Shfmt{}.Run([]string{broken, tidy})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(findings) != 1 || findings[0].File != tidy {
+		t.Errorf("got %v, want one finding in %s", findings, tidy)
+	}
+}

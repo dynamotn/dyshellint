@@ -78,6 +78,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hunk headers no longer matched, and every formatting finding was dropped.
   shfmt now runs without the colour-forcing variables and with `NO_COLOR=1`.
 
+- A file shfmt cannot parse no longer stops the whole run with exit code 2.
+  The parser of the rules already reports it as `BSG000`, so shfmt skips it and
+  goes on with the other files.
+
 ## [0.3.2]
 
 ### Added
