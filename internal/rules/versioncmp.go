@@ -26,7 +26,7 @@ var dottedVersion = regexp.MustCompile(`^v?[0-9]+\.[0-9]+`)
 
 func checkVersionComparison(f *File, r *Reporter) {
 	report := func(node syntax.Node) {
-		r.At(node.Pos(), "versions do not compare as text, where `1.10` sorts before `1.9`, nor as numbers, which stop at the first dot; use `dybatpho::semver_compare`, or `sort -V` where GNU sort is certain")
+		r.At(node.Pos(), "versions do not compare as text, where `1.10` sorts before `1.9`, nor as numbers, which stop at the first dot; use `dybatpho::semver_compare`; `sort -V` only orders plain dotted numbers, and puts `2.0.0-rc1` after `2.0.0`")
 	}
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		switch n := node.(type) {

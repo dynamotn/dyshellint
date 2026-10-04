@@ -78,3 +78,32 @@ func Sort(findings []Finding) {
 		}
 	})
 }
+
+// shadowedBy lists the external findings a rule of the guide already reports in
+// more detail, keyed by the code of the external finding.
+var shadowedBy = map[string]string{
+	// SC2155 is BSG010 for `local`, `declare`, `readonly` and `export`.
+	"SC2155": "BSG010",
+}
+
+// DropShadowed removes an external finding when the rule of the guide that
+// covers the same mistake reports it on the same line, so that one mistake is
+// reported once.
+func DropShadowed(findings []Finding) []Finding {
+	type place struct {
+		file, rule string
+		line       int
+	}
+	seen := map[place]bool{}
+	for _, f := range findings {
+		seen[place{f.File, f.Rule, f.Line}] = true
+	}
+	out := findings[:0]
+	for _, f := range findings {
+		if rule, ok := shadowedBy[f.Rule]; ok && seen[place{f.File, rule, f.Line}] {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}

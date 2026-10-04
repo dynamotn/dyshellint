@@ -109,11 +109,12 @@ func checkDeclareAndAssign(f *File, r *Reporter) {
 		if !ok || decl.Variant == nil {
 			return true
 		}
-		// `readonly SCRIPT_DIR="$(dirname ...)"` at the top of a file is the
-		// shape the guide recommends for constants, so only the declarations
-		// that shadow an exit status inside a function are flagged.
-		switch decl.Variant.Value {
-		case "local", "declare", "typeset":
+		// Every declaration builtin answers with its own status, so a failing
+		// substitution is lost at the top of a file as surely as in a function:
+		// `readonly SCRIPT_DIR="$(...)"` keeps an empty constant and carries on.
+		variant := decl.Variant.Value
+		switch variant {
+		case "local", "declare", "typeset", "readonly", "export":
 		default:
 			return true
 		}
@@ -121,8 +122,14 @@ func checkDeclareAndAssign(f *File, r *Reporter) {
 			if arg.Name == nil || !hasCmdSubst(arg.Value) {
 				continue
 			}
+			name := arg.Name.Value
+			if variant == "readonly" || variant == "export" {
+				r.At(arg.Pos(), "`%s %s=$(...)` throws away the exit status of the command; assign `%s` first, then `%s %s`",
+					variant, name, name, variant, name)
+				continue
+			}
 			r.At(arg.Pos(), "`%s %s=$(...)` throws away the exit status of the command; declare `%s` first, then assign it",
-				decl.Variant.Value, arg.Name.Value, arg.Name.Value)
+				variant, name, name)
 		}
 		return true
 	})

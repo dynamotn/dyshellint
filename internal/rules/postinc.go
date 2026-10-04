@@ -13,7 +13,7 @@ func init() {
 		Code:     "BSG088",
 		Section:  sectionArithmetic,
 		Severity: lint.SeverityError,
-		Doc:      "Do not run `((x++))` as a statement under `set -e`; write `x=$((x + 1))`",
+		Doc:      "Do not run `((x++))` as a statement under `set -e`; write `((x += 1))` or `x=$((x + 1))`",
 		Check:    checkPostIncrementStatement,
 	})
 }
@@ -40,7 +40,7 @@ func checkPostIncrementStatement(f *File, r *Reporter) {
 		if !ok || !hasPostStep(cmd.X) || statusUsed(stmt, up) {
 			return true
 		}
-		r.At(cmd.Pos(), "`((x++))` returns the old value, so it fails when that value is 0 and `set -e` ends the script; write `x=$((x + 1))`, or `((++x))` when the result cannot be 0")
+		r.At(cmd.Pos(), "`((x++))` returns the old value, so it fails when that value is 0 and `set -e` ends the script; write `((x += 1))` or `x=$((x + 1))`")
 		return true
 	})
 }

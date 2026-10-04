@@ -206,7 +206,7 @@ func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Find
 		}
 		findings = append(findings, filterExternal(rename(sources, external), opts)...)
 	}
-	return suppress(findings, directives), nil
+	return suppress(lint.DropShadowed(findings), directives), nil
 }
 
 // suppress drops the findings a `# dyshellint disable=` comment silences. It

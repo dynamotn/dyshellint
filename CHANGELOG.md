@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directive on a line of its own. ShellCheck reads a second `#` on the same
   line as a comment, and the guide asks for the reason there.
 
+- `BSG010` also reports `readonly X="$(cmd)"` and `export X="$(cmd)"`, at the
+  top of a file as well as in a function: the guide no longer recommends the
+  one-line form for constants, since the status of `readonly` hides a failing
+  `cmd` and leaves an empty constant behind. When ShellCheck reports SC2155 on
+  the same line, only `BSG010` is printed.
+
+- `BSG088` suggests `((x += 1))` or `x=$((x + 1))`, the increments the guide now
+  recommends, and `BSG097` no longer offers `sort -V` for a version that may
+  carry a pre-release suffix, which it orders after the release.
+
 ### Fixed
 
 - `BSG033` reports its heading as `Formatting > Function Declaration`, where

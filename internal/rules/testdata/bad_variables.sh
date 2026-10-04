@@ -4,6 +4,9 @@
 # @description Each function below breaks one rule of Variable Names.
 set -euo pipefail
 
+readonly SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+export BUILD_ID="$(date +%s)"
+
 #######################################
 # @description Assign from a command substitution while declaring
 # @noargs

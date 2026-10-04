@@ -3,7 +3,8 @@
 # @brief Show the shape the guide recommends for an entrypoint
 # @description Constants, then declarations, then the one call that starts the
 #   script. Nothing in between runs when the file is sourced.
-readonly SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
+SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
+readonly SCRIPT_DIR
 # shellcheck source=/dev/null
 . "${SCRIPT_DIR}/lib/dybatpho/init.sh" --modules cli || exit 1
 dybatpho::register_common_handlers

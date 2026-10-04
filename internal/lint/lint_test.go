@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -150,5 +151,24 @@ func TestShfmtSkipsAFileItCannotParse(t *testing.T) {
 	}
 	if len(findings) != 1 || findings[0].File != tidy {
 		t.Errorf("got %v, want one finding in %s", findings, tidy)
+	}
+}
+
+func TestDropShadowed(t *testing.T) {
+	findings := []Finding{
+		{File: "a.sh", Line: 3, Rule: "BSG010"},
+		{File: "a.sh", Line: 3, Rule: "SC2155"},
+		{File: "a.sh", Line: 4, Rule: "SC2155"},
+		{File: "b.sh", Line: 3, Rule: "SC2155"},
+	}
+	got := DropShadowed(findings)
+	want := []string{"a.sh:3:BSG010", "a.sh:4:SC2155", "b.sh:3:SC2155"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d findings, want %d: %v", len(got), len(want), got)
+	}
+	for i, f := range got {
+		if key := f.File + ":" + strconv.Itoa(f.Line) + ":" + f.Rule; key != want[i] {
+			t.Errorf("finding %d = %s, want %s", i, key, want[i])
+		}
 	}
 }
