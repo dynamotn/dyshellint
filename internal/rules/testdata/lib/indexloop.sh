@@ -26,3 +26,14 @@ function indexloop::own {
     printf '%s\n' "${__indexloop_own_items[__indexloop_own_i]}"
   done
 }
+
+#######################################
+# @description Walk the call stack, which the shell keeps dense
+# @noargs
+#######################################
+function indexloop::stack {
+  local __indexloop_stack_frame
+  for ((__indexloop_stack_frame = 1; __indexloop_stack_frame < ${#FUNCNAME[@]}; __indexloop_stack_frame++)); do
+    printf '%s\n' "${FUNCNAME[__indexloop_stack_frame]}"
+  done
+}

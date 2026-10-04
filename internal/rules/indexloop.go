@@ -36,7 +36,7 @@ func checkCountedIndexLoop(f *File, r *Reporter) {
 					return true
 				}
 				name := pe.Param.Value
-				if !namerefs[name] && built[name] {
+				if !namerefs[name] && (built[name] || shellVariables[name]) {
 					return true
 				}
 				r.At(pe.Pos(), "%q comes from the caller, and an array with a gap in its indexes makes `${%s[i]}` unset for some i below `${#%s[@]}`; walk `\"${!%s[@]}\"` instead",
