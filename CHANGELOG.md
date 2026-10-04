@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG083` also points a script that loads dybatpho at `dybatpho::date_parse`, `dybatpho::date_format`, `dybatpho::file_replace`, `dybatpho::file_mtime`, `dybatpho::file_size`, `dybatpho::semver_sort` or `dybatpho::create_temp`, by the command at fault.
 
+### Fixed
+
+- `BSG081` no longer reports a secret that the file hands to
+  `dybatpho::secret_register` when a dybatpho logger prints it, as that logger
+  prints it as `***`. `echo` and `printf` of the same value are still reported.
+
 ## [0.6.0]
 
 ### Added

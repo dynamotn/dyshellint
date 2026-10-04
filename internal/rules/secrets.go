@@ -44,8 +44,32 @@ var loggers = map[string]bool{
 	"dybatpho::fatal": true, "dybatpho::die": true, "dybatpho::header": true,
 }
 
+// registeredSecrets returns the variables a file hands to
+// `dybatpho::secret_register`, whose values every dybatpho logger then prints
+// as `***`.
+func registeredSecrets(f *File) map[string]bool {
+	out := map[string]bool{}
+	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+		call, ok := node.(*syntax.CallExpr)
+		if !ok || !registrars[callName(call)] {
+			return true
+		}
+		for _, arg := range call.Args[1:] {
+			syntax.Walk(arg, func(inner syntax.Node) bool {
+				if exp, ok := inner.(*syntax.ParamExp); ok && exp.Param != nil {
+					out[exp.Param.Value] = true
+				}
+				return true
+			})
+		}
+		return true
+	})
+	return out
+}
+
 func checkSecretExposure(f *File, r *Reporter) {
 	var up map[syntax.Node]syntax.Node
+	registered := registeredSecrets(f)
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
 		if !ok {
@@ -72,6 +96,11 @@ func checkSecretExposure(f *File, r *Reporter) {
 		}
 		for _, arg := range call.Args[1:] {
 			if secret := secretIn(arg, name); secret != "" {
+				// A dybatpho logger masks a registered secret; `echo` and
+				// `printf` print it as it is.
+				if strings.HasPrefix(name, "dybatpho::") && registered[secret] {
+					continue
+				}
 				verb := "puts it on the command line, where `ps` shows it to every user"
 				if !httpClients[name] {
 					verb = "prints it"
