@@ -36,7 +36,7 @@ func checkHandmadeJSON(f *File, r *Reporter) {
 		if !jsonKey.MatchString(text) || !quotedValue.MatchString(text) || escaperHint.MatchString(scope) {
 			return
 		}
-		r.At(word.Pos(), "`%s` puts a value between JSON quotes as it is, so a `\"`, a `\\` or a newline in it breaks the document; escape it first, or build the document with `jq` or the dybatpho JSON helpers",
+		reportWithDybatpho(f, r, word.Pos(), "`dybatpho::json_object name \"${value}\" ...` builds the object with every value escaped", "`%s` puts a value between JSON quotes as it is, so a `\"`, a `\\` or a newline in it breaks the document; escape it first, or build the document with `jq` or the dybatpho JSON helpers",
 			command)
 	}
 	eachFunc(f, func(decl *syntax.FuncDecl) {

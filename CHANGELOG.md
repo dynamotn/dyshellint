@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG081` also points a script that loads dybatpho at `dybatpho::curl_auth_bearer` and `dybatpho::secret_register`, which keep a token off the command line and out of the logs.
 
+- `BSG086` also points a script that loads dybatpho at `dybatpho::json_object`, which escapes every value.
+
 ## [0.6.0]
 
 ### Added
