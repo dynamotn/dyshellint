@@ -23,8 +23,10 @@ function _lookup {
 # @stdout The value
 #######################################
 function _pure {
-  local value="computed"
-  printf '%s\n' "${value}"
+  local value="computed" line
+  IFS=, read -r line <<< "a,b"
+  TZ=UTC date +%s > /dev/null
+  printf '%s %s\n' "${value}" "${line}"
 }
 
 #######################################

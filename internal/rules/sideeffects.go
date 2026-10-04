@@ -59,6 +59,15 @@ func globalWrite(decl *syntax.FuncDecl) string {
 				note(n.Name.Value)
 			}
 		case *syntax.CallExpr:
+			if len(n.Args) > 0 {
+				// `IFS=, read` or `TZ=UTC date` set the variable for that
+				// command alone, so its assignments are not walked.
+				builtinTargets(n, func(name string, _ syntax.Pos) { note(name) })
+				if registrars[callName(n)] {
+					found = callName(n)
+				}
+				return false
+			}
 			if name := callName(n); registrars[name] {
 				found = name
 				return false
