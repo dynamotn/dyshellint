@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `BSG081` no longer reports a secret that the file hands to
+  `dybatpho::secret_register` when a dybatpho logger prints it, as that logger
+  prints it as `***`. `echo` and `printf` of the same value are still reported.
+
 ## [1.0.0]
 
 ### Added
