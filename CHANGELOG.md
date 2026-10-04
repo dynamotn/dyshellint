@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The `.shellcheckrc` of this repository keeps SC2155 on, as the guide now
+  does: `readonly X="$(cmd)"` and `export X="$(cmd)"` lose the exit status of
+  `cmd` just as `local x="$(cmd)"` does. A project that copied the file should
+  copy it again.
+
+- The README no longer asks for the reason of a `# shellcheck disable=`
+  directive on a line of its own. ShellCheck reads a second `#` on the same
+  line as a comment, and the guide asks for the reason there.
+
+### Fixed
+
+- `BSG033` reports its heading as `Formatting > Function Declaration`, where
+  the guide keeps it, instead of a chapter the section never belonged to.
+
 ## [0.4.0]
 
 ### Added

@@ -100,13 +100,11 @@ itself.
 A `# shellcheck disable=SC####` comment is read as well, and silences the
 ShellCheck codes it names — never a `BSG###` or `FMT001`, not even through
 `disable=all`. It is scoped the way every directive here is, so it also works at
-the end of a line, where ShellCheck itself ignores it. Keep the reason in a
-comment of its own: ShellCheck rejects free text inside its own directive.
+the end of a line, where ShellCheck itself ignores it. Give the reason after a
+second `#` on the same line, as the guide asks: ShellCheck reads it as a comment.
 
 ```sh
-# shellcheck disable=SC2034 # <- breaks ShellCheck's own parser, write it as:
-# The variable is read by the sourced template.
-# shellcheck disable=SC2034
+# shellcheck disable=SC2034 # read by the sourced template
 template_name="release"
 ```
 

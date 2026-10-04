@@ -24,7 +24,8 @@ fi
 . "${DYBATPHO_PATH}/init.sh" --modules release safety cli
 dybatpho::register_common_handlers
 
-readonly REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_DIR="$(CDPATH='' cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly REPO_DIR
 readonly CHANGELOG="${REPO_DIR}/CHANGELOG.md"
 # The pattern the tags of this repository follow, overridable for a fork that
 # numbers its tags differently.

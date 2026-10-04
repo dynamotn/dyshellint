@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	sectionFunctionDecl  = "Shell Files and Interpreter Invocation > Function Declaration"
+	sectionFunctionDecl  = "Formatting > Function Declaration"
 	sectionCommonScripts = "Environment > Common Function Scripts"
 	sectionStdio         = "Environment > STDOUT and STDERR"
 	sectionSuid          = "Shell Files and Interpreter Invocation > SUID/SGID"

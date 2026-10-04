@@ -27,7 +27,6 @@ enable=check-extra-masked-returns # Calling Commands > Checking Return Values
 enable=check-set-e-suppressed     # Calling Commands > Checking Return Values
 enable=check-unassigned-uppercase # Naming Conventions > Variable Names
 
-# BSG010 covers the same ground with the distinction the guide makes: a
-# `local x="$(cmd)"` inside a function hides an exit status, while the
-# `readonly CONST="$(cmd)"` at the top of a file is the recommended form.
-disable=SC2155
+# SC2155 stays on: `readonly CONST="$(cmd)"` and `export VAR="$(cmd)"` hide
+# the exit status of `cmd` just as `local x="$(cmd)"` does, which BSG010 also
+# reports. Assign first, then mark the name read-only or exported.
