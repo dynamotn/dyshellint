@@ -136,7 +136,7 @@ func checkTightRetry(f *File, r *Reporter) {
 			})
 		}
 		if !sleeps {
-			r.At(loop.Pos(), "this loop retries `%s` with no pause, hammering a service that is already failing; sleep between attempts, longer each time, and stop after a few", network)
+			reportWithDybatpho(f, r, loop.Pos(), "`dybatpho::retry <times> '<command>'` waits longer after each attempt and stops after the last, and `dybatpho::curl_do` retries a request on its own", "this loop retries `%s` with no pause, hammering a service that is already failing; sleep between attempts, longer each time, and stop after a few", network)
 		}
 		return true
 	})

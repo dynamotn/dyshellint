@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG107` also points a script that loads dybatpho at `dybatpho::curl_timeout`, which sets both limits for one request.
 
+- `BSG117` also points a script that loads dybatpho at `dybatpho::retry` and `dybatpho::curl_do`, which back off between attempts and stop.
+
 ## [0.6.0]
 
 ### Added
