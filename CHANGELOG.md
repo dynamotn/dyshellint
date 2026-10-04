@@ -185,6 +185,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `"./${path}"`, the mode or owner of `chmod`/`chown`, the value of an option,
   and `grep -e`/`sed -e` patterns are left alone.
 
+- `BSG089` warns about `rm -r`, `chmod -R`, `chown -R`, `chgrp -R` or
+  `find -delete` on a path built from a variable the function never checks:
+  when it is empty, `rm -rf "${dir}/"` reaches `/`. A `[[ ]]` test of the
+  variable, `${dir:?}` in the same word, a variable filled by `mktemp` or a
+  temporary-file helper, and one passed to a path-safety check are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
