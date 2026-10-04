@@ -32,6 +32,8 @@ var optionTakers = map[string]string{
 var skipsFirst = map[string]bool{"chmod": true, "chown": true}
 
 func checkEndOfOptions(f *File, r *Reporter) {
+	inputs := map[*syntax.FuncDecl]map[string]bool{}
+	up := parents(f.Syntax)
 	eachCall(f, func(call *syntax.CallExpr, name string) {
 		valued, ok := optionTakers[name]
 		if !ok {
@@ -62,7 +64,7 @@ func checkEndOfOptions(f *File, r *Reporter) {
 			// Only the first operand can still be taken for an option once
 			// the command has seen a non-option word on GNU, and it is the one
 			// a value starting with `-` is most often handed in.
-			if isScalarExpansion(arg) {
+			if isScalarExpansion(arg) && fromInput(wordParam(arg).Param.Value, enclosingFunc(call, up), inputs) {
 				r.At(arg.Pos(), "`%s` reads a value that starts with `-` as an option; write `%s -- %s`",
 					name, name, wordSource(arg))
 			}
@@ -91,4 +93,48 @@ func isScalarExpansion(word *syntax.Word) bool {
 		}
 	}
 	return true
+}
+
+// fromInput reports whether a variable holds a value the caller or the input
+// supplied, which is where a leading `-` comes from: a positional parameter, a
+// variable filled from one or bound by `dybatpho::expect_args`, a `read`
+// target, or the variable of a loop over `"$@"`.
+func fromInput(name string, decl *syntax.FuncDecl, cache map[*syntax.FuncDecl]map[string]bool) bool {
+	if len(name) == 1 && name[0] >= '1' && name[0] <= '9' {
+		return true
+	}
+	if decl == nil {
+		return false
+	}
+	set, ok := cache[decl]
+	if !ok {
+		set = map[string]bool{}
+		for v := range fedIndex(decl) {
+			set[v] = true
+		}
+		allCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
+			if callee == "read" {
+				builtinTargets(call, func(target string, _ syntax.Pos) { set[target] = true })
+			}
+		})
+		syntax.Walk(decl.Body, func(node syntax.Node) bool {
+			clause, ok := node.(*syntax.ForClause)
+			if !ok {
+				return true
+			}
+			if iter, ok := clause.Loop.(*syntax.WordIter); ok && iter.Name != nil {
+				if !iter.InPos.IsValid() {
+					set[iter.Name.Value] = true
+				}
+				for _, item := range iter.Items {
+					if pe := wordParam(item); pe != nil && pe.Param != nil && (pe.Param.Value == "@" || pe.Param.Value == "*") {
+						set[iter.Name.Value] = true
+					}
+				}
+			}
+			return true
+		})
+		cache[decl] = set
+	}
+	return set[name]
 }
