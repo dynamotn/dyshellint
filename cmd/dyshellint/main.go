@@ -159,6 +159,7 @@ func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Find
 	// silenced: the syntax error is the only finding it can carry anyway.
 	directives := make(map[string]*directive.Set, len(sources))
 	var findings []lint.Finding
+	var files []*rules.File
 	for _, source := range sources {
 		paths = append(paths, source.Disk)
 		file, err := rules.NewFile(source.Name, source.Content, source.Executable)
@@ -170,6 +171,12 @@ func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Find
 		}
 		file.ModeKnown = source.ModeKnown
 		directives[source.Name] = directive.Parse(file.Lines, file.Syntax)
+		files = append(files, file)
+	}
+	// Every file is parsed before any rule runs, so that a rule can follow a
+	// call into the file that defines the function.
+	rules.Link(files)
+	for _, file := range files {
 		findings = append(findings, rules.Run(file, selected)...)
 	}
 	if !opts.noShellcheck {

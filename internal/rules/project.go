@@ -222,13 +222,20 @@ func wordParam(word *syntax.Word) *syntax.ParamExp {
 
 // runsCallerCode reports whether a simple command runs code its caller passed:
 // its first word is `"$@"`, a positional parameter or a variable named like
-// `command`, or it is an `eval`.
+// `command`, or it is an `eval` of a single expansion.
 func runsCallerCode(call *syntax.CallExpr) bool {
 	if len(call.Args) == 0 {
 		return false
 	}
 	if wordLiteral(call.Args[0]) == "eval" {
-		return true
+		// `eval "$1"` or `eval "${code}"` runs what it was handed; an `eval` of a
+		// string the function builds itself is BSG040's business.
+		for _, arg := range call.Args[1:] {
+			if wordParam(arg) != nil {
+				return true
+			}
+		}
+		return false
 	}
 	return isCodeParam(wordParam(call.Args[0]))
 }

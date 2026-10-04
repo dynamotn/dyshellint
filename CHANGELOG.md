@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the same name as the local gets the local instead and loses the value.
   Prefixing the locals with two underscores keeps them apart.
 
+- `BSG015` warns about a plain local in a function that runs code its caller
+  passed — `"$@"`, a positional parameter or a variable named like `command`
+  or `handler` run as a command, or `eval` — or that hands such code on to a
+  function that does. The code runs in the function's scope, so it can read and
+  change any local declared before it. Files are now parsed before any rule
+  runs, so a rule can follow a call into the file that defines the function.
+
 ## [0.3.2]
 
 ### Added
