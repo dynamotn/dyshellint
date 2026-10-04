@@ -44,9 +44,13 @@ func checkLibraryShellState(f *File, r *Reporter) {
 			r.At(node.Pos(), "%s in %q leaks into the script that sourced the library; scope it with `local -`, `local IFS`, a `( ... )` subshell, or save and restore it",
 				what, decl.Name.Value)
 		}
+		restored := restoredState(decl)
 		allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
 			switch name {
 			case "set":
+				if restored["set"] {
+					return
+				}
 				if localOptions || strings.Contains(text, "$-") || strings.Contains(text, "set +o\n") {
 					return
 				}
@@ -58,7 +62,7 @@ func checkLibraryShellState(f *File, r *Reporter) {
 					}
 				}
 			case "shopt":
-				if strings.Contains(text, "shopt -p") || hasFlag(call, 'q') || hasFlag(call, 'p') {
+				if restored["shopt"] || strings.Contains(text, "shopt -p") || hasFlag(call, 'q') || hasFlag(call, 'p') {
 					return
 				}
 				if hasFlag(call, 's') || hasFlag(call, 'u') {
@@ -72,7 +76,7 @@ func checkLibraryShellState(f *File, r *Reporter) {
 		})
 		// A bare `IFS=...` statement changes the shell's IFS; one before a
 		// command is scoped to that command.
-		if localIFS {
+		if localIFS || restored["IFS"] {
 			return
 		}
 		syntax.Walk(decl.Body, func(node syntax.Node) bool {
@@ -107,4 +111,54 @@ func hasLocalDash(decl *syntax.FuncDecl) bool {
 		return true
 	})
 	return found
+}
+
+// restoredState reports which state a function puts back itself: `set` when
+// every option it turns off it also turns on again (or the reverse), `shopt`
+// when it both sets and unsets, and `IFS` when it saves the old value.
+func restoredState(decl *syntax.FuncDecl) map[string]bool {
+	on, off := map[byte]bool{}, map[byte]bool{}
+	shoptSet, shoptUnset := false, false
+	out := map[string]bool{}
+	allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
+		switch name {
+		case "set":
+			for _, arg := range call.Args[1:] {
+				lit := wordLiteral(arg)
+				if len(lit) < 2 || (lit[0] != '-' && lit[0] != '+') {
+					continue
+				}
+				for i := 1; i < len(lit); i++ {
+					if lit[0] == '-' {
+						on[lit[i]] = true
+					} else {
+						off[lit[i]] = true
+					}
+				}
+			}
+		case "shopt":
+			shoptSet = shoptSet || hasFlag(call, 's')
+			shoptUnset = shoptUnset || hasFlag(call, 'u')
+		}
+	})
+	paired := len(on)+len(off) > 0
+	for letter := range on {
+		if strings.IndexByte(scopedOptions, letter) >= 0 && !off[letter] {
+			paired = false
+		}
+	}
+	for letter := range off {
+		if strings.IndexByte(scopedOptions, letter) >= 0 && !on[letter] {
+			paired = false
+		}
+	}
+	out["set"] = paired
+	out["shopt"] = shoptSet && shoptUnset
+	syntax.Walk(decl.Body, func(node syntax.Node) bool {
+		if assign, ok := node.(*syntax.Assign); ok && assign.Value != nil && strings.Contains(wordSource(assign.Value), "IFS") {
+			out["IFS"] = true
+		}
+		return true
+	})
+	return out
 }

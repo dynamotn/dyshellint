@@ -27,3 +27,16 @@ function libstate::careful {
   shopt -q nullglob || true
   printf '%s %s\n' "${a}" "${b}"
 }
+
+#######################################
+# @description Turn strict mode off for a step and back on after it
+# @noargs
+#######################################
+function libstate::lenient {
+  local old_ifs="${IFS}"
+  set +e
+  IFS=,
+  false
+  IFS="${old_ifs}"
+  set -e
+}
