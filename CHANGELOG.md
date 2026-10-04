@@ -223,6 +223,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a `signed-by=` keyring, `grep -E`, `grep -F`, `command -v`, `ip addr`,
   `mktemp`, `ss`.
 
+- `BSG096` warns, in an entrypoint, about `.` or `source` of a path built from
+  a variable or `$(...)` that the file never tests with `-e`, `-f`, `-r` or
+  `-s`, when the status of the `.` is not read: without `set -e` a missing
+  library only prints an error, and the script runs on without it.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
