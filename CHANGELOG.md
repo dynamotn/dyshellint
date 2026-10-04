@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `BSG014` reports a plain local in a public function that writes to a
+  variable its caller names, through a nameref bound to an argument,
+  `printf -v`, `read`, `mapfile` or `readarray`. A caller whose variable has
+  the same name as the local gets the local instead and loses the value.
+  Prefixing the locals with two underscores keeps them apart.
+
 ## [0.3.2]
 
 ### Added

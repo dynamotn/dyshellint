@@ -1,0 +1,63 @@
+# @file scope.sh
+# @brief Functions whose locals a caller's variable names can reach
+# @description Each public function writes to a variable its caller names. A
+#   plain local is what the caller gets when its variable has the same name.
+
+#######################################
+# @description Fill a caller's variable through a nameref, with plain locals
+# @arg $1 string Name of the variable to fill
+# @arg $2 string Value to store
+#######################################
+function scope::fill_into {
+  local -n ref="$1"
+  local value="$2"
+  ref="${value}"
+}
+
+#######################################
+# @description Fill a caller's variable with printf -v, with a plain local
+# @arg $1 string Name of the variable to fill
+#######################################
+function scope::stamp_into {
+  local stamp="now"
+  printf -v "$1" '%s' "${stamp}"
+}
+
+#######################################
+# @description Read a line into a caller's variable, with a plain local
+# @arg $1 string Name of the variable to fill
+#######################################
+function scope::line_into {
+  local source="/dev/null"
+  read -r "$1" < "${source}" || true
+}
+
+#######################################
+# @description Fill a caller's variable, with every local prefixed
+# @arg $1 string Name of the variable to fill
+#######################################
+function scope::fill_safely {
+  local -n __scope_fill_safely_ref="$1"
+  local __scope_fill_safely_value="ok"
+  __scope_fill_safely_ref="${__scope_fill_safely_value}"
+}
+
+#######################################
+# @description Bind a nameref to a fixed global, which no caller names
+# @noargs
+#######################################
+function scope::fill_fixed {
+  local -n target=SCOPE_RESULT
+  local value="fixed"
+  target="${value}"
+}
+
+#######################################
+# @description A private helper, which only the library itself calls
+# @arg $1 string Name of the variable to fill
+#######################################
+function __scope_fill {
+  local -n ref="$1"
+  local value="private"
+  ref="${value}"
+}

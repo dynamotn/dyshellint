@@ -61,6 +61,9 @@ type File struct {
 	// UsesDybatpho reports whether the file sources dybatpho, which relaxes the
 	// `set -euo pipefail` rule and enables the dybatpho-specific checks.
 	UsesDybatpho bool
+	// Project is every file of the run, linked so that a rule can follow a
+	// call into the file that defines it. Nil until Link runs.
+	Project *Project
 }
 
 // Reporter collects the findings of one rule against one file.
