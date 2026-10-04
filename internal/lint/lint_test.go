@@ -2,6 +2,9 @@ package lint
 
 import (
 	"bytes"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -104,4 +107,24 @@ func itoa(n int) string {
 		digits = append([]byte{byte('0' + n%10)}, digits...)
 	}
 	return string(digits)
+}
+
+func TestShfmtReportsUnderForcedColour(t *testing.T) {
+	if _, err := exec.LookPath("shfmt"); err != nil {
+		t.Skip("shfmt is not installed")
+	}
+	// A coloured diff hides the hunk headers, which made a badly formatted
+	// file read as clean wherever FORCE_COLOR was set.
+	t.Setenv("FORCE_COLOR", "3")
+	tidy := filepath.Join(t.TempDir(), "tidy.sh")
+	if err := os.WriteFile(tidy, []byte("if true; then\n\techo hi\nfi\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	findings, err := Shfmt{}.Run([]string{tidy})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(findings) != 1 {
+		t.Errorf("got %v, want one finding", findings)
+	}
 }

@@ -71,6 +71,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   given `-`; without it the assertion ignores the input and passes on any
   non-empty output.
 
+### Fixed
+
+- A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
+  set in the environment. shfmt then coloured its diff even into a pipe, the
+  hunk headers no longer matched, and every formatting finding was dropped.
+  shfmt now runs without the colour-forcing variables and with `NO_COLOR=1`.
+
 ## [0.3.2]
 
 ### Added

@@ -3,6 +3,7 @@ package lint
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"slices"
@@ -51,7 +52,9 @@ func (s Shfmt) Run(files []string) ([]Finding, error) {
 		return nil, fmt.Errorf("%w: %s", ErrToolMissing, binary)
 	}
 	return eachFile(files, s.Jobs, func(file string) ([]Finding, error) {
-		out, err := exec.Command(binary, slices.Concat(shfmtDialect(file), shfmtOptions, []string{file})...).Output()
+		cmd := exec.Command(binary, slices.Concat(shfmtDialect(file), shfmtOptions, []string{file})...)
+		cmd.Env = plainEnv()
+		out, err := cmd.Output()
 		var exitErr *exec.ExitError
 		switch {
 		case err == nil:
@@ -89,4 +92,21 @@ func hunkFindings(file, diff string) []Finding {
 		})
 	}
 	return findings
+}
+
+// plainEnv is the environment of this process without the variables that make
+// a tool colour its output even into a pipe. shfmt honours `FORCE_COLOR`, and a
+// coloured diff hides every hunk header from the parser above, which then
+// reports a badly formatted file as clean.
+func plainEnv() []string {
+	var env []string
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		switch name {
+		case "FORCE_COLOR", "CLICOLOR_FORCE":
+			continue
+		}
+		env = append(env, entry)
+	}
+	return append(env, "NO_COLOR=1")
 }
