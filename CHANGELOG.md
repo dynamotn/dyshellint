@@ -115,6 +115,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   itself, `HOME`, `PATH`, and the variables a dybatpho option spec declares are
   left alone.
 
+- `BSG084` warns about a call inside `$(...)` to a function of the run that
+  sets a global in its own shell — an assignment to a name it did not declare
+  `local`, `declare -g`, a literal `read`, `mapfile` or `printf -v` target, or
+  `dybatpho::secret_register`. The substitution runs it in a subshell, so a
+  cache it fills or a secret it registers is gone when the subshell ends.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
