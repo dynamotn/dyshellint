@@ -27,8 +27,13 @@ var numberCheck = regexp.MustCompile(`(?i)(^|::|_)(is|valid|validate|expect_int|
 func checkUncheckedArithmetic(f *File, r *Reporter) {
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		inputs := map[string]bool{}
-		for name := range fedIndex(decl) {
-			inputs[name] = true
+		// A private helper of a library is handed what its public caller has
+		// already checked; only what it reads itself is input there.
+		fromCaller := f.Role != RoleLibrary || isPublicFunc(decl)
+		if fromCaller {
+			for name := range fedIndex(decl) {
+				inputs[name] = true
+			}
 		}
 		allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
 			if name == "read" {
@@ -61,7 +66,7 @@ func checkUncheckedArithmetic(f *File, r *Reporter) {
 				if name == "" || checked[name] || reported[name] {
 					return false
 				}
-				if !inputs[name] && !(len(name) == 1 && name[0] >= '1' && name[0] <= '9') {
+				if !inputs[name] && !(fromCaller && len(name) == 1 && name[0] >= '1' && name[0] <= '9') {
 					return false
 				}
 				reported[name] = true
