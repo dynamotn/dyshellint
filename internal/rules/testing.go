@@ -134,7 +134,7 @@ func checkTestIsolation(f *File, r *Reporter) {
 				r.At(arg.Pos(), "`%s -c` runs with an empty `BASH_SOURCE`, which breaks code that reads it under `set -u`, coverage included; write the script to a file under `$BATS_TEST_TMPDIR` and run that",
 					lit)
 				return
-			case lit == "git" && !cleared && !gitReported:
+			case lit == "git" && runsCommand(call, i) && !cleared && !gitReported:
 				gitReported = true
 				r.At(arg.Pos(), "this test runs `git`, and nothing in the suite clears `GIT_DIR` and its kin; run from a git hook, every git call lands in the repository being committed to; unset them in the test helper")
 				return
@@ -149,4 +149,24 @@ func checkTestIsolation(f *File, r *Reporter) {
 func usesLibrary(word *syntax.Word) bool {
 	text := wordSource(word)
 	return dybatphoSource.MatchString(text) || strings.Contains(text, "init.sh") || strings.Contains(text, "BASH_SOURCE")
+}
+
+// testRunners are the bats helpers that run their arguments as a command.
+var testRunners = map[string]bool{"run": true, "run_traced": true}
+
+// runsCommand reports whether the word at index i is the command a call runs:
+// the call's own name, or the first word after `run` and its options.
+func runsCommand(call *syntax.CallExpr, i int) bool {
+	if i == 0 {
+		return true
+	}
+	if !testRunners[callName(call)] {
+		return false
+	}
+	for j := 1; j < i; j++ {
+		if !strings.HasPrefix(wordLiteral(call.Args[j]), "-") && wordLiteral(call.Args[j]) != "!" {
+			return false
+		}
+	}
+	return true
 }
