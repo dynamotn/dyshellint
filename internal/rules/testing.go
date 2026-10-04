@@ -130,7 +130,7 @@ func checkTestIsolation(f *File, r *Reporter) {
 		for i, arg := range call.Args {
 			lit := wordLiteral(arg)
 			switch {
-			case shellRunners[lit] && i+1 < len(call.Args) && wordLiteral(call.Args[i+1]) == "-c":
+			case shellRunners[lit] && i+2 < len(call.Args) && wordLiteral(call.Args[i+1]) == "-c" && usesLibrary(call.Args[i+2]):
 				r.At(arg.Pos(), "`%s -c` runs with an empty `BASH_SOURCE`, which breaks code that reads it under `set -u`, coverage included; write the script to a file under `$BATS_TEST_TMPDIR` and run that",
 					lit)
 				return
@@ -141,4 +141,12 @@ func checkTestIsolation(f *File, r *Reporter) {
 			}
 		}
 	})
+}
+
+// usesLibrary reports whether a script given as a string loads or calls the
+// code under test, which is what reads `BASH_SOURCE`; a one-line stand-in
+// command such as `bash -c 'exit 3'` loses nothing.
+func usesLibrary(word *syntax.Word) bool {
+	text := wordSource(word)
+	return dybatphoSource.MatchString(text) || strings.Contains(text, "init.sh") || strings.Contains(text, "BASH_SOURCE")
 }
