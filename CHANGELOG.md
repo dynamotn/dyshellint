@@ -171,6 +171,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   script that sourced the library. A `popd`, `cd -`, `cd "$OLDPWD"`, or a `cd`
   to a variable saved from `$PWD` or `$(pwd)` counts as going back.
 
+- `BSG092` warns about a library function that changes the caller's shell
+  state outside a subshell: `set` with `-e`, `-C`, `-f`, `-u`, `-x`, `-a` or
+  `-o`, `shopt -s`/`-u`, a bare `IFS=` statement, or `umask` with a mask. A
+  function with `local -`, `local IFS`, a saved `$-`, `shopt -p` or
+  `$(umask)` to restore from, an `IFS=` in front of one command, and
+  `set -- args` are left alone.
+
 ### Fixed
 
 - A badly formatted file is reported as `FMT001` again when `FORCE_COLOR` is
