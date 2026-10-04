@@ -24,6 +24,13 @@ func init() {
 			Check:    checkCatSubstitution,
 		},
 		Rule{
+			Code:     "BSG126",
+			Section:  sectionBuiltins,
+			Severity: lint.SeverityWarning,
+			Doc:      "Split a string into fields with `IFS=: read -r a b _ <<<` or parameter expansion, not `echo | cut`",
+			Check:    checkFieldSplit,
+		},
+		Rule{
 			Code:     "BSG109",
 			Section:  sectionShellCheck,
 			Severity: lint.SeverityWarning,
@@ -48,6 +55,89 @@ func checkCatSubstitution(f *File, r *Reporter) {
 		r.At(cs.Pos(), "`$(cat %s)` starts a process to read a file; `$(< %s)` does the same in the shell", wordSource(call.Args[1]), wordSource(call.Args[1]))
 		return true
 	})
+}
+
+// awkField matches an awk program that only prints one field, `{print $2}`.
+var awkField = regexp.MustCompile(`^\s*\{\s*print\s+\$[0-9]+\s*;?\s*\}\s*$`)
+
+// checkFieldSplit reports a string echoed into `cut`, or into an awk program
+// that prints one field, and `cut` fed by a here-string: `read` splits it
+// into named fields in the shell.
+func checkFieldSplit(f *File, r *Reporter) {
+	const msg = "a process to split a string into fields; `IFS=%s read -r first second _ <<< \"${value}\"` splits it in the shell, or `${value%%%%%s*}` keeps the first field"
+	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.BinaryCmd:
+			if n.Op != syntax.Pipe {
+				return true
+			}
+			left, ok := n.X.Cmd.(*syntax.CallExpr)
+			if !ok || (callName(left) != "echo" && callName(left) != "printf") {
+				return true
+			}
+			right, ok := n.Y.Cmd.(*syntax.CallExpr)
+			if !ok {
+				return true
+			}
+			if sep, ok := fieldSplitter(right); ok {
+				r.At(n.OpPos, msg, sep, sep)
+			}
+		case *syntax.Stmt:
+			call, ok := n.Cmd.(*syntax.CallExpr)
+			if !ok || callName(call) != "cut" {
+				return true
+			}
+			sep, ok := fieldSplitter(call)
+			if !ok {
+				return true
+			}
+			for _, redir := range n.Redirs {
+				if redir.Op == syntax.WordHdoc {
+					r.At(redir.OpPos, msg, sep, sep)
+				}
+			}
+		}
+		return true
+	})
+}
+
+// fieldSplitter reports whether a call only cuts fields out of its input,
+// `cut -d -f` or `awk -F` with a program that prints one field, and returns
+// the separator it splits on. `cut -c` and `cut -b` take characters, not
+// fields, and are left alone.
+func fieldSplitter(call *syntax.CallExpr) (string, bool) {
+	sep := " "
+	switch callName(call) {
+	case "cut":
+		delimited, fields := false, false
+		for i, arg := range call.Args[1:] {
+			lit := wordLiteral(arg)
+			switch {
+			case len(lit) > 2 && lit[:2] == "-d":
+				sep, delimited = lit[2:], true
+			case lit == "-d" && i+2 < len(call.Args):
+				sep, delimited = wordLiteral(call.Args[i+2]), true
+			case len(lit) >= 2 && lit[:2] == "-f":
+				fields = true
+			}
+		}
+		return sep, delimited && fields
+	case "awk":
+		matched := false
+		for i, arg := range call.Args[1:] {
+			lit := wordLiteral(arg)
+			switch {
+			case len(lit) > 2 && lit[:2] == "-F":
+				sep = lit[2:]
+			case lit == "-F" && i+2 < len(call.Args):
+				sep = wordLiteral(call.Args[i+2])
+			case awkField.MatchString(lit):
+				matched = true
+			}
+		}
+		return sep, matched
+	}
+	return "", false
 }
 
 // sourceDisabled matches a ShellCheck directive that disables SC1091.

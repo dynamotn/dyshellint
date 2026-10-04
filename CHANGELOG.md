@@ -67,6 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   head of a pipeline: names with spaces, newlines or glob characters break it.
   `ls` that only shows a listing, and `git ls-files`, are left alone.
 
+- `BSG126` warns about a string split into fields by a process: `echo` or
+  `printf` piped into `cut -d ... -f`, or into an awk program that prints one
+  field, and such a `cut` fed by a here-string. `IFS=: read -r` does the same in
+  the shell. `cut -c` and `cut -b`, which take characters, are left alone.
+
 ## [0.5.0]
 
 ### Added
