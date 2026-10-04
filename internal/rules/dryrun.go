@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"regexp"
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
@@ -46,6 +47,9 @@ func checkDryRunBypass(f *File, r *Reporter) {
 			return
 		}
 		allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
+			if touchesScratch(call) {
+				return
+			}
 			if what := sideEffect(call, name); what != "" {
 				r.At(call.Pos(), "%s runs even under `DRY_RUN`, which this script offers; wrap it in `dybatpho::dry_run`, or check `DRY_RUN` first",
 					what)
@@ -78,4 +82,24 @@ func sideEffect(call *syntax.CallExpr, name string) string {
 		return "`chezmoi apply`"
 	}
 	return ""
+}
+
+// scratchName matches the variables a script keeps its own working files in.
+var scratchName = regexp.MustCompile(`(?i)(tmp|temp|staged|staging|partial|scratch|aside|side)`)
+
+// touchesScratch reports whether every path a call names is one of the
+// script's own working files, whose cleanup is no change a dry run must skip.
+func touchesScratch(call *syntax.CallExpr) bool {
+	seen := false
+	for _, arg := range call.Args[1:] {
+		if strings.HasPrefix(wordLiteral(arg), "-") {
+			continue
+		}
+		pe := wordParam(arg)
+		if pe == nil || pe.Param == nil || !scratchName.MatchString(pe.Param.Value) {
+			return false
+		}
+		seen = true
+	}
+	return seen
 }

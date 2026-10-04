@@ -14,6 +14,8 @@ function _install {
   ln -s -- "${dir}/new" "${dir}/current"
   systemctl restart app
   systemctl status app
+  local staged="${dir}/.new"
+  rm -f -- "${staged}"
 }
 
 #######################################
