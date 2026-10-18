@@ -62,7 +62,8 @@ func (f Finding) String() string {
 }
 
 // Sort orders findings the way a reader walks a report: by file, then by
-// position, then by rule so that the output is stable between runs.
+// position, then by rule and message so that the output is stable between
+// runs.
 func Sort(findings []Finding) {
 	sort.SliceStable(findings, func(i, j int) bool {
 		a, b := findings[i], findings[j]
@@ -73,8 +74,12 @@ func Sort(findings []Finding) {
 			return a.Line < b.Line
 		case a.Column != b.Column:
 			return a.Column < b.Column
-		default:
+		case a.Rule != b.Rule:
 			return a.Rule < b.Rule
+		default:
+			// Two findings of one rule at one place still come out in the
+			// same order, whatever order the rule found them in.
+			return a.Message < b.Message
 		}
 	})
 }

@@ -205,3 +205,14 @@ func TestExternalToolsTakeADashedNameAsAFile(t *testing.T) {
 		}
 	}
 }
+
+func TestSortBreaksATieOnTheMessage(t *testing.T) {
+	findings := []Finding{
+		{File: "a.sh", Line: 1, Rule: "BSG021", Message: "b"},
+		{File: "a.sh", Line: 1, Rule: "BSG021", Message: "a"},
+	}
+	Sort(findings)
+	if findings[0].Message != "a" {
+		t.Errorf("got %v, want the message in order", findings)
+	}
+}

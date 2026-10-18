@@ -148,6 +148,8 @@ func Run(f *File, rules []Rule) []lint.Finding {
 		}
 		r := &Reporter{file: f, rule: rule}
 		rule.Check(f, r)
+		// A rule may walk a map, whose order changes from run to run.
+		lint.Sort(r.findings)
 		findings = append(findings, r.findings...)
 	}
 	return findings
