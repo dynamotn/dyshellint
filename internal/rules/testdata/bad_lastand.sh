@@ -53,6 +53,28 @@ function _tidy {
   done &> /dev/null
 }
 
+#######################################
+# @description Answer whether a file holds a line, a predicate on purpose
+# @arg $1 string File
+# @arg $2 string Line
+# @exitcode 0 If the file holds the line
+#######################################
+function _has_line {
+  [[ -f "$1" ]] && grep -q -- "$2" "$1"
+}
+
+#######################################
+# @description The same predicate, also called as a plain command
+# @arg $1 string File
+# @arg $2 string Line
+#######################################
+function _has_line_too {
+  [[ -f "$1" ]] && grep -q -- "$2" "$1"
+}
+
+if _has_line "$1" x || ! _has_line_too "$1" y; then
+  _has_line_too "$1" z
+fi
 _log_wrong "$@"
 _log_right "$@"
 _copy "$@"

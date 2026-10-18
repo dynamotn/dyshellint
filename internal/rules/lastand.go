@@ -45,7 +45,11 @@ func checkTrailingAnd(f *File, r *Reporter) {
 		}
 		r.At(last.Pos(), "%s ends with `test && action`, so a false test becomes its status and `set -e` stops the caller; write `if test; then action; fi`, or `test || return 0` first", what)
 	}
+	predicates := predicateFuncs(f)
 	eachFunc(f, func(decl *syntax.FuncDecl) {
+		if predicates[decl.Name.Value] {
+			return
+		}
 		if block, ok := decl.Body.Cmd.(*syntax.Block); ok {
 			report(block.Stmts, "`"+decl.Name.Value+"`")
 		}
@@ -53,6 +57,36 @@ func checkTrailingAnd(f *File, r *Reporter) {
 	if f.Role == RoleEntrypoint {
 		report(f.Syntax.Stmts, "the script")
 	}
+}
+
+// predicateFuncs returns the functions of a file whose status is the answer:
+// every call to them is tested, by `if`, `while`, `&&`, `||` or `!`, so a
+// false test there is what the caller asked for, not a failure. Only calls in
+// the file are seen, so a public function of a library, which other files
+// call, is never one.
+func predicateFuncs(f *File) map[string]bool {
+	up := parents(f.Syntax)
+	tested := map[string]bool{}
+	untested := map[string]bool{}
+	eachCall(f, func(call *syntax.CallExpr, name string) {
+		stmt, ok := up[call].(*syntax.Stmt)
+		if ok && (stmt.Negated || statusUsed(stmt, up)) {
+			tested[name] = true
+		} else {
+			untested[name] = true
+		}
+	})
+	out := map[string]bool{}
+	eachFunc(f, func(decl *syntax.FuncDecl) {
+		name := decl.Name.Value
+		if f.Role == RoleLibrary && isPublicFunc(decl) {
+			return
+		}
+		if tested[name] && !untested[name] {
+			out[name] = true
+		}
+	})
+	return out
 }
 
 // isTest reports whether a statement is a test whose false answer is not a
