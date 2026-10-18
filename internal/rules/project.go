@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"slices"
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
@@ -10,20 +11,25 @@ import (
 // the run defines, and which of them can stop the script or fail. A rule that
 // follows a call into another file reads it from here.
 type Project struct {
-	// funcs maps a function name to its declaration, the last one wins.
+	// defs maps each file to the functions it defines, by name. The last
+	// definition in a file wins, as it does when the file runs.
+	defs map[*File]map[string]*syntax.FuncDecl
+	// funcs maps a function name to the definition a file that does not define
+	// it reaches: the one of the file whose path sorts first, so that what a
+	// rule finds does not depend on the order the files were named in.
 	funcs map[string]*syntax.FuncDecl
 	// canDie holds the functions that can end the shell they run in, directly
 	// with `dybatpho::die` or `exit`, or through a function that can.
-	canDie map[string]bool
+	canDie map[*syntax.FuncDecl]bool
 	// canFail holds the functions that can return a non-zero status: the ones
 	// that can die, and the ones with a `return` that is not `return 0`.
-	canFail map[string]bool
+	canFail map[*syntax.FuncDecl]bool
 	// runners holds the functions that run code their caller handed them, and
 	// the functions that hand their own caller's code on to one of those.
-	runners map[string]bool
+	runners map[*syntax.FuncDecl]bool
 	// writers maps a function to the positions of the arguments it treats as
 	// the name of a variable to write, directly or by handing the name on.
-	writers map[string]map[int]bool
+	writers map[*syntax.FuncDecl]map[int]bool
 	// assigned holds every variable name any file of the run sets.
 	assigned map[string]bool
 	// maps holds every name any file of the run declares with `-A`, and every
@@ -55,18 +61,30 @@ var argumentGuards = map[string]bool{
 // them, so that a call into another file is followed to its definition.
 func Link(files []*File) *Project {
 	p := &Project{
+		defs:     map[*File]map[string]*syntax.FuncDecl{},
 		funcs:    map[string]*syntax.FuncDecl{},
-		canDie:   map[string]bool{},
-		canFail:  map[string]bool{},
-		runners:  map[string]bool{},
-		writers:  map[string]map[int]bool{},
+		canDie:   map[*syntax.FuncDecl]bool{},
+		canFail:  map[*syntax.FuncDecl]bool{},
+		runners:  map[*syntax.FuncDecl]bool{},
+		writers:  map[*syntax.FuncDecl]map[int]bool{},
 		assigned: map[string]bool{},
 		maps:     map[string]bool{},
 	}
 	for _, f := range files {
+		defs := map[string]*syntax.FuncDecl{}
 		eachFunc(f, func(decl *syntax.FuncDecl) {
-			p.funcs[decl.Name.Value] = decl
+			defs[decl.Name.Value] = decl
 		})
+		p.defs[f] = defs
+	}
+	byPath := slices.Clone(files)
+	slices.SortStableFunc(byPath, func(a, b *File) int { return strings.Compare(a.Path, b.Path) })
+	for _, f := range byPath {
+		for name, decl := range p.defs[f] {
+			if p.funcs[name] == nil {
+				p.funcs[name] = decl
+			}
+		}
 	}
 	p.spread()
 	// What a rule reads of every file is gathered here, once for the run,
@@ -96,109 +114,142 @@ func (f *File) project() *Project {
 	return f.Project
 }
 
-// CanDie reports whether calling the function can end the shell it runs in.
-func (p *Project) CanDie(name string) bool { return p.canDie[name] }
+// Func returns the definition a call to the function from the file runs: the
+// file's own when it has one, else the one of the run, or nil.
+func (p *Project) Func(f *File, name string) *syntax.FuncDecl {
+	if decl := p.defs[f][name]; decl != nil {
+		return decl
+	}
+	return p.funcs[name]
+}
 
-// CanFail reports whether the function can return a non-zero status.
-func (p *Project) CanFail(name string) bool { return p.canFail[name] }
+// CanDie reports whether calling the function from the file can end the shell
+// it runs in.
+func (p *Project) CanDie(f *File, name string) bool { return p.canDie[p.Func(f, name)] }
 
-// RunsCallerCode reports whether the function runs code its caller passed.
-func (p *Project) RunsCallerCode(name string) bool { return p.runners[name] }
+// CanFail reports whether the function a call from the file reaches can return
+// a non-zero status.
+func (p *Project) CanFail(f *File, name string) bool { return p.canFail[p.Func(f, name)] }
+
+// RunsCallerCode reports whether the function a call from the file reaches
+// runs code its caller passed.
+func (p *Project) RunsCallerCode(f *File, name string) bool { return p.runners[p.Func(f, name)] }
 
 // WritesCallerName reports whether the function writes to a variable whose
 // name its caller passed, itself or through a function it hands the name to.
-func (p *Project) WritesCallerName(name string) bool { return len(p.writers[name]) > 0 }
+func (p *Project) WritesCallerName(decl *syntax.FuncDecl) bool { return len(p.writers[decl]) > 0 }
 
-// spread works out canDie, canFail and runners to a fixed point over the call
-// graph of every function.
+// namePass is a call through which a function may hand a variable name its
+// own caller passed on to a writer.
+type namePass struct {
+	caller *syntax.FuncDecl
+	call   *syntax.CallExpr
+	// fed maps the caller's variables to the argument position they hold.
+	fed map[string]int
+}
+
+// spread works out canDie, canFail, runners and writers to a fixed point over
+// the call graph of every function.
 func (p *Project) spread() {
-	edges := map[string][]string{}
-	handsOn := map[string][]string{}
-	type namePass struct {
-		call *syntax.CallExpr
-		fed  map[string]int
-	}
-	passes := map[string][]namePass{}
-	for name, decl := range p.funcs {
-		fed := callerFed(decl)
-		ownCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
-			switch {
-			case dieSinks[callee] && !argumentGuards[name]:
-				p.canDie[name] = true
-			case callee == "return" && returnsFailure(call):
-				p.canFail[name] = true
-			case callee == "false":
-				p.canFail[name] = true
-			}
-			if callee != "" && !argumentGuards[callee] {
-				edges[name] = append(edges[name], callee)
-			}
+	dieCallers := map[*syntax.FuncDecl][]*syntax.FuncDecl{}
+	codeCallers := map[*syntax.FuncDecl][]*syntax.FuncDecl{}
+	nameCallers := map[*syntax.FuncDecl][]namePass{}
+	for f := range p.defs {
+		eachFunc(f, func(decl *syntax.FuncDecl) {
+			p.scanCalls(f, decl, dieCallers, codeCallers, nameCallers)
 		})
-		// Code run in a subshell still sees every local, so a runner is found
-		// wherever it runs the code it was handed.
-		positions := fedIndex(decl)
-		allCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
-			if runsCallerCode(call, fed) {
-				p.runners[name] = true
-			}
-			if callee != "" && passesCallerCode(call, fed) {
-				handsOn[name] = append(handsOn[name], callee)
-			}
-			if callee != "" {
-				passes[name] = append(passes[name], namePass{call: call, fed: positions})
-			}
-		})
-		if direct := writerParams(decl); len(direct) > 0 {
-			p.writers[name] = direct
-		}
 	}
 	for changed := true; changed; {
 		changed = false
-		for name, callees := range edges {
-			if p.canDie[name] || argumentGuards[name] {
+		for callee, callers := range dieCallers {
+			if !p.canDie[callee] {
 				continue
 			}
-			for _, callee := range callees {
-				if p.canDie[callee] {
-					p.canDie[name] = true
+			for _, caller := range callers {
+				if !p.canDie[caller] && !argumentGuards[caller.Name.Value] {
+					p.canDie[caller] = true
 					changed = true
-					break
 				}
 			}
 		}
-		for name, list := range passes {
-			for _, pass := range list {
-				for position := range p.writers[callName(pass.call)] {
+		for callee, passes := range nameCallers {
+			for _, pass := range passes {
+				for position := range p.writers[callee] {
 					if position < 1 || position >= len(pass.call.Args) {
 						continue
 					}
 					mine := argPosition(pass.call.Args[position], pass.fed)
-					if mine < 1 || p.writers[name][mine] {
+					if mine < 1 || p.writers[pass.caller][mine] {
 						continue
 					}
-					if p.writers[name] == nil {
-						p.writers[name] = map[int]bool{}
+					if p.writers[pass.caller] == nil {
+						p.writers[pass.caller] = map[int]bool{}
 					}
-					p.writers[name][mine] = true
+					p.writers[pass.caller][mine] = true
 					changed = true
 				}
 			}
 		}
-		for name, callees := range handsOn {
-			if p.runners[name] {
+		for callee, callers := range codeCallers {
+			if !p.runners[callee] {
 				continue
 			}
-			for _, callee := range callees {
-				if p.runners[callee] {
-					p.runners[name] = true
+			for _, caller := range callers {
+				if !p.runners[caller] {
+					p.runners[caller] = true
 					changed = true
-					break
 				}
 			}
 		}
 	}
-	for name := range p.canDie {
-		p.canFail[name] = true
+	for decl := range p.canDie {
+		p.canFail[decl] = true
+	}
+}
+
+// scanCalls marks what one function does on its own, and records each call it
+// makes to a function of the run under the callee, so that what the callee
+// turns out to do can be handed back to it.
+func (p *Project) scanCalls(f *File, decl *syntax.FuncDecl, dieCallers, codeCallers map[*syntax.FuncDecl][]*syntax.FuncDecl, nameCallers map[*syntax.FuncDecl][]namePass) {
+	name := decl.Name.Value
+	fed := callerFed(decl)
+	ownCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
+		switch {
+		case dieSinks[callee] && !argumentGuards[name]:
+			p.canDie[decl] = true
+		case callee == "return" && returnsFailure(call):
+			p.canFail[decl] = true
+		case callee == "false":
+			p.canFail[decl] = true
+		}
+		if callee == "" || argumentGuards[callee] {
+			return
+		}
+		if target := p.Func(f, callee); target != nil {
+			dieCallers[target] = append(dieCallers[target], decl)
+		}
+	})
+	// Code run in a subshell still sees every local, so a runner is found
+	// wherever it runs the code it was handed.
+	positions := fedIndex(decl)
+	allCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
+		if runsCallerCode(call, fed) {
+			p.runners[decl] = true
+		}
+		if callee == "" {
+			return
+		}
+		target := p.Func(f, callee)
+		if target == nil {
+			return
+		}
+		if passesCallerCode(call, fed) {
+			codeCallers[target] = append(codeCallers[target], decl)
+		}
+		nameCallers[target] = append(nameCallers[target], namePass{caller: decl, call: call, fed: positions})
+	})
+	if direct := writerParams(decl); len(direct) > 0 {
+		p.writers[decl] = direct
 	}
 }
 

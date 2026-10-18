@@ -69,7 +69,7 @@ func externalPrefixes(f *File, p *Project) []string {
 	var out []string
 	eachCall(f, func(_ *syntax.CallExpr, name string) {
 		i := strings.Index(name, "::")
-		if i <= 0 || p.funcs[name] != nil {
+		if i <= 0 || p.Func(f, name) != nil {
 			return
 		}
 		prefix := strings.ToUpper(name[:i]) + "_"

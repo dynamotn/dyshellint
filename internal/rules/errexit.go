@@ -44,7 +44,7 @@ func checkInheritErrexit(f *File, r *Reporter) {
 	// A substitution of one external command fails as a whole, which
 	// errexit sees; one that runs several commands, or a function of the run,
 	// goes on past the first failure.
-	funcs := f.project().funcs
+	p := f.project()
 	substitutes := false
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		cs, ok := node.(*syntax.CmdSubst)
@@ -56,7 +56,7 @@ func checkInheritErrexit(f *File, r *Reporter) {
 		}
 		for _, stmt := range cs.Stmts {
 			for _, call := range leadingCalls(stmt) {
-				if funcs[callName(call)] != nil {
+				if p.Func(f, callName(call)) != nil {
 					substitutes = true
 				}
 			}

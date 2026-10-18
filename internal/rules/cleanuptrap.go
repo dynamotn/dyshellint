@@ -27,7 +27,7 @@ var interrupts = map[string]bool{"INT": true, "TERM": true, "SIGINT": true, "SIG
 // temporary files and the script carries on without them, then exits 0. The
 // `EXIT` trap already runs when Bash dies of either signal.
 func checkCleanupTrap(f *File, r *Reporter) {
-	funcs := f.project().funcs
+	p := f.project()
 	eachCall(f, func(call *syntax.CallExpr, name string) {
 		if name != "trap" || len(call.Args) < 3 {
 			return
@@ -47,8 +47,8 @@ func checkCleanupTrap(f *File, r *Reporter) {
 			return
 		}
 		names := splitWords(wordSource(handler))
-		if len(names) == 1 && funcs[names[0]] != nil {
-			body := funcs[names[0]].Body
+		if len(names) == 1 && p.Func(f, names[0]) != nil {
+			body := p.Func(f, names[0]).Body
 			names = nil
 			allCalls(body, func(_ *syntax.CallExpr, callee string) {
 				names = append(names, callee)
