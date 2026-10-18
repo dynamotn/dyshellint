@@ -28,3 +28,18 @@ function _accidental_global {
     printf '%s\n' "${i}"
   done
 }
+
+#######################################
+# @description Assign a global inside a nested function
+# @noargs
+#######################################
+function _outer {
+  #######################################
+  # @description Assign the global
+  # @noargs
+  #######################################
+  function _inner {
+    nested="x"
+  }
+  _inner
+}

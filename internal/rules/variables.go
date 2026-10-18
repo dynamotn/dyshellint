@@ -138,7 +138,12 @@ func checkDeclareAndAssign(f *File, r *Reporter) {
 func checkImplicitGlobal(f *File, r *Reporter) {
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		declared := map[string]bool{}
+		// A nested function is checked on its own visit; walking into it here
+		// as well would report each of its assignments twice.
 		syntax.Walk(decl.Body, func(node syntax.Node) bool {
+			if _, ok := node.(*syntax.FuncDecl); ok {
+				return false
+			}
 			clause, ok := node.(*syntax.DeclClause)
 			if !ok {
 				return true
@@ -152,7 +157,8 @@ func checkImplicitGlobal(f *File, r *Reporter) {
 		})
 		syntax.Walk(decl.Body, func(node syntax.Node) bool {
 			// A declaration carries its own assignments; they are handled above.
-			if _, ok := node.(*syntax.DeclClause); ok {
+			switch node.(type) {
+			case *syntax.DeclClause, *syntax.FuncDecl:
 				return false
 			}
 			assign, ok := node.(*syntax.Assign)
