@@ -202,8 +202,18 @@ func checkFunctionArgs(f *File, r *Reporter) {
 	}
 }
 
-// todoAuthor matches the `TODO(someone)` form, and a handle left in the text.
-var todoAuthor = regexp.MustCompile(`TODO\s*\(([^)]+)\)|TODO\b[^\n]*?(@[A-Za-z][\w.-]+)`)
+// todoAuthor matches the `TODO(someone)` form, and a handle that opens the
+// text, `TODO @someone:`. A handle further on is only a mention, and an
+// address such as `bob@example.com` is no handle at all.
+var todoAuthor = regexp.MustCompile(`TODO\s*\(([^)]+)\)|TODO:?\s*(@[A-Za-z][\w.-]*)`)
+
+// shdocTags are the shdoc tags a TODO may name, as in
+// `TODO @arg tags for the flags`, which are not a person.
+var shdocTags = map[string]bool{
+	"@file": true, "@brief": true, "@description": true, "@arg": true, "@noargs": true, "@set": true,
+	"@exitcode": true, "@stdin": true, "@stdout": true, "@stderr": true, "@see": true, "@example": true,
+	"@option": true, "@internal": true, "@label": true,
+}
 
 func checkTodoAuthor(f *File, r *Reporter) {
 	eachComment(f, func(comment syntax.Comment) {
@@ -214,12 +224,17 @@ func checkTodoAuthor(f *File, r *Reporter) {
 		name := match[1]
 		if name == "" {
 			name = match[2]
+			if shdocTags[name] {
+				return
+			}
 		}
 		r.At(comment.Pos(), "TODO comment names %q; `git blame` already answers who wrote it", strings.TrimSpace(name))
 	})
 }
 
 // eachComment walks every comment in the file, wherever it is attached.
+// syntax.Walk already visits the comments after the last statement, so they
+// are not walked a second time.
 func eachComment(f *File, fn func(syntax.Comment)) {
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		if comment, ok := node.(*syntax.Comment); ok {
@@ -227,9 +242,6 @@ func eachComment(f *File, fn func(syntax.Comment)) {
 		}
 		return true
 	})
-	for _, comment := range f.Syntax.Last {
-		fn(comment)
-	}
 }
 
 func checkCommentBeforeShebang(f *File, r *Reporter) {
