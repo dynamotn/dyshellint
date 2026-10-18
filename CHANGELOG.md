@@ -92,6 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   function, and no longer reads `date -Iseconds` as `date -d`.
 - `BSG082` reports a guessable scratch path written outside any function.
 - Two findings of one rule on one line come out in the same order every run.
+- `BSG095` no longer reports a helper that only runs once the dry run is
+  decided: every call to it sits in a branch of a `DRY_RUN` test, goes through
+  `dybatpho::dry_run`, or comes from a helper that does.
 
 ### Security
 

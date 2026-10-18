@@ -40,10 +40,11 @@ func checkDryRunBypass(f *File, r *Reporter) {
 	if strings.Contains(src, "function dybatpho::dry_run") {
 		return
 	}
+	guarded := dryRunGuarded(f)
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		// A private helper of a library runs for a public function, which is
 		// where the dry run is decided.
-		if f.Role == RoleLibrary && !isPublicFunc(decl) {
+		if f.Role == RoleLibrary && !isPublicFunc(decl) || guarded[decl.Name.Value] {
 			return
 		}
 		text := f.Text(decl.Pos(), decl.End())
@@ -60,6 +61,79 @@ func checkDryRunBypass(f *File, r *Reporter) {
 			}
 		})
 	})
+}
+
+// dryRunGuarded returns the functions of a file that only ever run once the
+// dry run has been decided: every call to them sits in a branch of a test of
+// `DRY_RUN`, goes through `dybatpho::dry_run`, or is made by a function that is
+// itself guarded. A function nothing in the file calls is not guarded, since
+// whoever calls it from elsewhere may not check.
+func dryRunGuarded(f *File) map[string]bool {
+	up := parents(f.Syntax)
+	sites := map[string][]*syntax.CallExpr{}
+	eachCall(f, func(call *syntax.CallExpr, name string) {
+		if name == "dybatpho::dry_run" {
+			if len(call.Args) > 1 {
+				// The helper prints the command instead of running it, which
+				// is a guard of its own: no site to check.
+				sites[wordLiteral(call.Args[1])] = append(sites[wordLiteral(call.Args[1])], nil)
+			}
+			return
+		}
+		sites[name] = append(sites[name], call)
+	})
+	guarded := map[string]bool{}
+	// A guard reaches down a chain of calls, so the set grows until no
+	// function joins it.
+	for changed := true; changed; {
+		changed = false
+		eachFunc(f, func(decl *syntax.FuncDecl) {
+			name := decl.Name.Value
+			if guarded[name] || len(sites[name]) == 0 {
+				return
+			}
+			for _, call := range sites[name] {
+				if call != nil && !underDryRunGuard(f, call, up, guarded) {
+					return
+				}
+			}
+			guarded[name] = true
+			changed = true
+		})
+	}
+	return guarded
+}
+
+// underDryRunGuard reports whether a call only runs once the dry run is
+// decided: in the branch of an `if` whose condition reads `DRY_RUN`, on the
+// right of a `&&` or `||` whose left side does, or in a guarded function.
+func underDryRunGuard(f *File, call *syntax.CallExpr, up map[syntax.Node]syntax.Node, guarded map[string]bool) bool {
+	child := syntax.Node(call)
+	for node := up[child]; node != nil; child, node = node, up[node] {
+		switch n := node.(type) {
+		case *syntax.IfClause:
+			if !inStmts(n.Cond, child) && readsDryRun(f, n.Cond...) {
+				return true
+			}
+		case *syntax.BinaryCmd:
+			if (n.Op == syntax.AndStmt || n.Op == syntax.OrStmt) && child == n.Y && readsDryRun(f, n.X) {
+				return true
+			}
+		case *syntax.FuncDecl:
+			return guarded[n.Name.Value]
+		}
+	}
+	return false
+}
+
+// readsDryRun reports whether any of the statements mentions `DRY_RUN`.
+func readsDryRun(f *File, stmts ...*syntax.Stmt) bool {
+	for _, stmt := range stmts {
+		if strings.Contains(f.Text(stmt.Pos(), stmt.End()), "DRY_RUN") {
+			return true
+		}
+	}
+	return false
 }
 
 // sideEffect describes the change a command makes, or returns the empty
