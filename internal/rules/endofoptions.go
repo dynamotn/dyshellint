@@ -49,10 +49,13 @@ func checkEndOfOptions(f *File, r *Reporter) {
 			if strings.HasPrefix(lit, "-") && len(lit) > 1 {
 				// `grep -e PATTERN` names the pattern, so no operand can be
 				// mistaken for it; an option with a value takes the next word.
-				if (name == "grep" || name == "sed") && (strings.ContainsAny(lit[1:], "ef") || strings.HasPrefix(lit, "--regexp") || strings.HasPrefix(lit, "--expression")) {
+				// Only a short cluster such as `-ie` spells `-e` with a letter:
+				// the `e` of `--ignore-case` is part of a word.
+				short := !strings.HasPrefix(lit, "--")
+				if (name == "grep" || name == "sed") && (short && strings.ContainsAny(lit[1:], "ef") || strings.HasPrefix(lit, "--regexp") || strings.HasPrefix(lit, "--expression")) {
 					return
 				}
-				if !strings.HasPrefix(lit, "--") && strings.ContainsAny(lit[len(lit)-1:], valued) {
+				if short && strings.ContainsAny(lit[len(lit)-1:], valued) {
 					i++
 				}
 				continue
