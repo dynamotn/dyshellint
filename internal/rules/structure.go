@@ -96,9 +96,9 @@ func checkShebang(f *File, r *Reporter) {
 // strictOptions are the options the guide asks for, by their long name.
 var strictOptions = []string{"errexit", "nounset", "pipefail"}
 
-// shortOptions maps the letters of `set` that turn on a strict option to its
-// long name.
-var shortOptions = map[byte]string{'e': "errexit", 'u': "nounset"}
+// shortOptions maps the letters of `set` the rules look for to the long name
+// of their option.
+var shortOptions = map[byte]string{'e': "errexit", 'u': "nounset", 'x': "xtrace"}
 
 func checkStrictMode(f *File, r *Reporter) {
 	if f.Role != RoleEntrypoint || f.UsesDybatpho {
@@ -121,24 +121,27 @@ func checkStrictMode(f *File, r *Reporter) {
 // setOptions adds the long name of every option a `set` call turns on to on.
 // The letters of a cluster come in any order, as in `-Eeuo pipefail`, and each
 // `o` among them takes the next word as the name of an option, the way
-// `-o errexit -o nounset` spells them out.
+// `-o errexit -o nounset` spells them out. A cluster that starts with `+`
+// turns its options off, and is only stepped over.
 func setOptions(call *syntax.CallExpr, on map[string]bool) {
 	args := call.Args[1:]
 	for i := 0; i < len(args); i++ {
 		lit := wordLiteral(args[i])
-		if len(lit) < 2 || lit[0] != '-' || lit == "--" {
+		if len(lit) < 2 || lit[0] != '-' && lit[0] != '+' || lit == "--" {
 			// The rest are positional parameters.
 			return
 		}
+		turnsOn := lit[0] == '-'
 		for _, letter := range []byte(lit[1:]) {
+			option := shortOptions[letter]
 			if letter == 'o' {
-				if i+1 < len(args) {
-					i++
-					on[wordLiteral(args[i])] = true
+				if i+1 >= len(args) {
+					continue
 				}
-				continue
+				i++
+				option = wordLiteral(args[i])
 			}
-			if option := shortOptions[letter]; option != "" {
+			if turnsOn && option != "" {
 				on[option] = true
 			}
 		}
@@ -184,13 +187,12 @@ func checkInlineTrace(f *File, r *Reporter) {
 		if name != "set" {
 			return
 		}
-		for _, arg := range call.Args[1:] {
-			if lit := wordLiteral(arg); strings.HasPrefix(lit, "-x") || lit == "-o" {
-				if strings.Contains(lit, "x") {
-					r.At(call.Pos(), "`set -x` cannot be turned off by the caller; use `dybatpho::start_trace` and `dybatpho::end_trace`")
-					return
-				}
-			}
+		// `-x` may sit in a cluster, as in `set -ex`, or be spelled out as
+		// `-o xtrace`.
+		on := map[string]bool{}
+		setOptions(call, on)
+		if on["xtrace"] {
+			r.At(call.Pos(), "`set -x` cannot be turned off by the caller; use `dybatpho::start_trace` and `dybatpho::end_trace`")
 		}
 	})
 }

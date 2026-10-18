@@ -13,6 +13,11 @@ dybatpho::register_common_handlers
 #######################################
 function _traced {
   set -x
+  set -ex
+  set -o xtrace
+  set -eu -o xtrace
+  set +x
+  set -o errexit
   printf 'traced\n'
 }
 
