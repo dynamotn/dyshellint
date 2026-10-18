@@ -14,11 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and shfmt already run beside them, and `BSG103` and the `.bats` isolation
   check no longer read every file of the run again for each file.
 
-### Security
-
-- Release binaries are built with Go 1.26.9, which fixes the standard library
-  advisories reported against 1.26.5.
-
 ### Fixed
 
 - A directory given through a symlink is walked; it used to report
@@ -39,6 +34,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `inherit_errexit`, which dybatpho already does.
 - `--stdin-filename` with a name such as `..` keeps the temporary copy inside
   its own directory.
+- `BSG128` no longer crashes the linter on a line that ends in `timeout -k` or
+  `timeout -s`.
+- A call is resolved to the function its own file defines before one of the
+  same name elsewhere, so `BSG047` and the other rules that follow a call no
+  longer change with the order files are named in; a mock in a `.bats` file no
+  longer hides the real function from the library either.
+- Linking a project with a long chain of calls takes linear time; a chain of
+  8000 functions took seconds.
+- `BSG031` accepts the strict mode in any spelling, such as `set -Eeuo pipefail`
+  or `set -o errexit -o nounset -o pipefail`, and no longer counts one written
+  in a comment.
+- `BSG034` reports `set -ex` and `set -o xtrace`.
+- `BSG036` accepts `>/dev/stderr` and a redirected `{ ...; } >&2`, and reads the
+  start of the message, so `echo "Error: ${msg}"` and `printf 'error: %s\n'`
+  are reported.
+- `BSG100` no longer reports `echo "${#array[@]}"`.
+- `BSG056` reads `--write-out='%{http_code}'` and `-w'%{http_code}'`.
+- `BSG058` reports `curl ... | bash -s stable` and `curl ... | sudo bash`.
+- `BSG004` expects `lib/util.bash` to hold `util::` functions, not
+  `util.bash::`.
+- `BSG107` and the other rules that look for a short option no longer read the
+  letters of a joined value, as in `-w'%{http_code}'`, as options.
+- `BSG089` checks a recursive deletion outside any function, and accepts
+  `${dir:-default}` with a non-empty default as never empty.
+- `BSG122` no longer reports the idiom that captures stderr alone,
+  `err="$(cmd 2>&1 > /dev/null)"`.
+- `BSG119` no longer asks for `+` when more tests follow `\;`, as in
+  `find . -exec grep -q foo {} \; -print`.
+- `BSG044` reports `(( $? != 0 ))`, `[ $? -ne 0 ]` and `test $? -ne 0`, and
+  accepts `cmd || [[ $? -eq 1 ]]`.
+- `BSG098` no longer reports a `read` in a group whose input is redirected or
+  piped in, such as `{ read -r a; read -r b; } < file`.
+- `BSG092` accepts options saved with `saved="$(set +o)"` and put back with
+  `eval`, and no longer reads the words after `set --` as options.
+- `BSG108` no longer suggests `$(< ...)` for a glob or a list such as
+  `$(cat "$@")`, and `BSG126` no longer suggests `read <<<` for `printf` of
+  several values.
+- `BSG023` reports only a handle right after `TODO`, not a shdoc tag or an
+  e-mail address, and a comment after the last command is reported once.
+- `BSG050` finds `$1` in the syntax tree, so `awk '{ print $1 }'` in a function
+  that takes no argument is no longer reported.
+- `BSG057` no longer takes a long option such as `--ignore-case` for `-e` or
+  `-f`.
+- `BSG097` no longer reports a comparison of a split part such as
+  `version_major`, or of a length such as `${#version}`.
+- `BSG096` accepts a library found from `${0}` or straight from
+  `${BASH_SOURCE[0]%/*}`.
+- `BSG115` treats a sourced path as shared only when it starts in `/tmp/`.
+- `BSG071` and `BSG072` no longer report a tab or trailing blank in the body of
+  a here-document.
+- `BSG073` accepts a variable guarded by `[[ -v NAME ]]`.
+- `BSG011` reports an assignment in a nested function once, and `BSG082` a
+  scratch path in one once.
+- `BSG010` reports `local -a files=($(ls))`.
+- `BSG083` reports `sort --version-sort` and GNU-only options outside any
+  function, and no longer reads `date -Iseconds` as `date -d`.
+- `BSG082` reports a guessable scratch path written outside any function.
+- Two findings of one rule on one line come out in the same order every run.
+
+### Security
+
+- Release binaries are built with Go 1.26.9, which fixes the standard library
+  advisories reported against 1.26.5.
 
 ## [1.0.1]
 
