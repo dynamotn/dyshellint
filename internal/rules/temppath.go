@@ -91,11 +91,25 @@ func hasGuessablePart(word *syntax.Word) bool {
 func hasFlag(call *syntax.CallExpr, letter byte) bool {
 	for _, arg := range call.Args[1:] {
 		lit := wordLiteral(arg)
-		if strings.HasPrefix(lit, "-") && !strings.HasPrefix(lit, "--") && strings.IndexByte(lit[1:], letter) >= 0 {
+		if !strings.HasPrefix(lit, "-") || strings.HasPrefix(lit, "--") {
+			continue
+		}
+		cluster := lit[1:]
+		if strings.IndexFunc(cluster, notOptionLetter) >= 0 {
+			// Only letters make a cluster: `-w'%{http_code}'` or `-o/dev/null`
+			// is one option with its value joined on, and the letters of the
+			// value are no options.
+			cluster = cluster[:1]
+		}
+		if strings.IndexByte(cluster, letter) >= 0 {
 			return true
 		}
 	}
 	return false
+}
+
+func notOptionLetter(r rune) bool {
+	return !('a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || '0' <= r && r <= '9')
 }
 
 // setsNoclobber reports whether a function, or the top level of a file,

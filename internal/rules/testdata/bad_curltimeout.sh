@@ -19,6 +19,7 @@ function _fetch {
   curl --config "${HOME}/.curlrc" "${url}"
   timeout 30 curl --fail -sS "${url}"
   curl --version
+  curl --fail -sS -w'%{http_code}' -o/dev/null "${url}"
 }
 
 _fetch "$@"
