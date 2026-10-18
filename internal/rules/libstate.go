@@ -56,7 +56,7 @@ func checkLibraryShellState(f *File, r *Reporter) {
 				if localOptions || saved || strings.Contains(text, "$-") {
 					return
 				}
-				for _, arg := range setOptions(call) {
+				for _, arg := range setOptionWords(call) {
 					lit := wordLiteral(arg)
 					if lit == "-o" || lit == "+o" || (len(lit) > 1 && (lit[0] == '-' || lit[0] == '+') && strings.ContainsAny(lit[1:], scopedOptions)) {
 						report(call, "`set "+lit+"`")
@@ -126,7 +126,7 @@ func restoredState(decl *syntax.FuncDecl) map[string]bool {
 	allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
 		switch name {
 		case "set":
-			for _, arg := range setOptions(call) {
+			for _, arg := range setOptionWords(call) {
 				lit := wordLiteral(arg)
 				if len(lit) < 2 || (lit[0] != '-' && lit[0] != '+') {
 					continue
@@ -166,10 +166,10 @@ func restoredState(decl *syntax.FuncDecl) map[string]bool {
 	return out
 }
 
-// setOptions returns the words of a `set` call up to `--` or `-`, after
+// setOptionWords returns the words of a `set` call up to `--` or `-`, after
 // which every word is a positional parameter: `set -- -a "$@"` sets `$1` to
 // `-a` and turns no option on.
-func setOptions(call *syntax.CallExpr) []*syntax.Word {
+func setOptionWords(call *syntax.CallExpr) []*syntax.Word {
 	args := call.Args[1:]
 	for i, arg := range args {
 		if lit := wordLiteral(arg); lit == "--" || lit == "-" {

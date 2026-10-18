@@ -24,7 +24,7 @@ func checkCallerCodeLocals(f *File, r *Reporter) {
 		var last syntax.Pos
 		fed := callerFed(decl)
 		allCalls(decl.Body, func(call *syntax.CallExpr, callee string) {
-			if runsCallerCode(call, fed) || (callee != "" && p.RunsCallerCode(callee) && passesCallerCode(call, fed)) {
+			if runsCallerCode(call, fed) || (callee != "" && p.RunsCallerCode(f, callee) && passesCallerCode(call, fed)) {
 				if call.Pos().After(last) {
 					last = call.Pos()
 				}

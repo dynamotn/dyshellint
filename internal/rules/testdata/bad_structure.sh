@@ -11,6 +11,12 @@ source ./lib/functions.sh
 #######################################
 function _first {
   echo "Error: something went wrong"
+  echo "error: x" >/dev/stderr
+  { echo "error: x"; } >&2
+  echo "Error: ${1}"
+  printf 'error: %s\n' "${1}"
+  echo -e "warning: ${1}"
+  printf 'done: %s\n' "error"
 }
 
 rm -rf ./cache

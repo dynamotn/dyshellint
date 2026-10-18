@@ -73,21 +73,82 @@ func procDownloads(ps *syntax.ProcSubst) bool {
 	return false
 }
 
-// runsStdin reports whether a command runs the script it reads on stdin.
+// runsStdin reports whether a command runs the script it reads on stdin, as
+// itself or under `sudo` or `env`.
 func runsStdin(call *syntax.CallExpr) bool {
-	name := callName(call)
+	if call == nil {
+		return false
+	}
+	args := unwrapRunAs(call.Args)
+	if len(args) == 0 {
+		return false
+	}
+	name := wordLiteral(args[0])
 	if shellRunners[name] {
-		for _, arg := range call.Args[1:] {
-			if lit := wordLiteral(arg); lit != "-s" && lit != "-" && lit != "--" && !(len(lit) > 1 && lit[0] == '-') {
+		for _, arg := range args[1:] {
+			switch lit := wordLiteral(arg); {
+			case lit == "-s" || lit == "-" || lit == "--":
+				// What follows is handed to the script read from stdin, as in
+				// `bash -s stable`.
+				return true
+			case len(lit) > 1 && lit[0] == '-':
+			default:
+				// The first operand is the script to run, or with `-c` the
+				// code.
 				return false
 			}
 		}
 		return true
 	}
 	if name == "source" || name == "." {
-		return len(call.Args) > 1 && wordLiteral(call.Args[1]) == "/dev/stdin"
+		return len(args) > 1 && wordLiteral(args[1]) == "/dev/stdin"
 	}
 	return false
+}
+
+// sudoArgOptions are the options of `sudo` that take a value.
+var sudoArgOptions = map[string]bool{
+	"-u": true, "-g": true, "-p": true, "-C": true, "-D": true, "-h": true,
+	"-r": true, "-t": true, "-T": true, "-U": true,
+}
+
+// unwrapRunAs returns the words of the command a call runs, past `sudo` and
+// `env` with their options and the variables `env` sets.
+func unwrapRunAs(args []*syntax.Word) []*syntax.Word {
+	for len(args) > 0 {
+		switch wordLiteral(args[0]) {
+		case "sudo":
+			args = args[1:]
+			for len(args) > 0 && strings.HasPrefix(wordLiteral(args[0]), "-") {
+				lit := wordLiteral(args[0])
+				args = args[1:]
+				if lit == "--" {
+					break
+				}
+				if sudoArgOptions[lit] && len(args) > 0 {
+					args = args[1:]
+				}
+			}
+		case "env":
+			args = args[1:]
+			for len(args) > 0 {
+				lit := wordLiteral(args[0])
+				if !strings.HasPrefix(lit, "-") && !strings.Contains(lit, "=") {
+					break
+				}
+				args = args[1:]
+				if lit == "--" {
+					break
+				}
+				if (lit == "-u" || lit == "-C" || lit == "-S") && len(args) > 0 {
+					args = args[1:]
+				}
+			}
+		default:
+			return args
+		}
+	}
+	return args
 }
 
 func init() {
@@ -111,15 +172,24 @@ func checkCurlWithoutFail(f *File, r *Reporter) {
 }
 
 // checksHTTPCode reports whether a call asks curl for the status code, which
-// the caller then checks itself.
+// the caller then checks itself. The format may be the next word, or joined to
+// the option, as in `--write-out='%{http_code}'` or `-w'%{http_code}'`.
 func checksHTTPCode(call *syntax.CallExpr) bool {
 	for i, arg := range call.Args[1:] {
-		lit := wordLiteral(arg)
-		if (lit == "-w" || lit == "--write-out") && i+2 < len(call.Args) {
-			src := wordSource(call.Args[i+2])
-			if strings.Contains(src, "http_code") || strings.Contains(src, "response_code") {
-				return true
+		src := wordSource(arg)
+		var format string
+		switch lit := wordLiteral(arg); {
+		case lit == "-w" || lit == "--write-out":
+			if i+2 < len(call.Args) {
+				format = wordSource(call.Args[i+2])
 			}
+		case strings.HasPrefix(src, "--write-out="):
+			format = strings.TrimPrefix(src, "--write-out=")
+		case strings.HasPrefix(src, "-w"):
+			format = strings.TrimPrefix(src, "-w")
+		}
+		if strings.Contains(format, "http_code") || strings.Contains(format, "response_code") {
+			return true
 		}
 	}
 	return false
@@ -149,7 +219,9 @@ func unwrapCall(call *syntax.CallExpr) []*syntax.Word {
 		case "timeout":
 			args = args[1:]
 			for len(args) > 0 && strings.HasPrefix(wordLiteral(args[0]), "-") {
-				if lit := wordLiteral(args[0]); lit == "-s" || lit == "-k" {
+				// `-s` and `-k` take the next word, which a line cut short, such
+				// as `timeout -k`, does not have.
+				if lit := wordLiteral(args[0]); (lit == "-s" || lit == "-k") && len(args) > 1 {
 					args = args[1:]
 				}
 				args = args[1:]

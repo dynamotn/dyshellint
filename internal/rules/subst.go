@@ -33,7 +33,7 @@ func checkDieInSubst(f *File, r *Reporter) {
 		if !ok {
 			return true
 		}
-		callee := dieCapableCallee(p, cs)
+		callee := dieCapableCallee(f, p, cs)
 		if callee == "" {
 			return true
 		}
@@ -60,10 +60,10 @@ func checkDieInSubst(f *File, r *Reporter) {
 
 // dieCapableCallee returns the first command a substitution runs that can stop
 // the script, or the empty string.
-func dieCapableCallee(p *Project, cs *syntax.CmdSubst) string {
+func dieCapableCallee(f *File, p *Project, cs *syntax.CmdSubst) string {
 	for _, stmt := range cs.Stmts {
 		for _, call := range leadingCalls(stmt) {
-			if name := callName(call); name != "" && p.CanDie(name) {
+			if name := callName(call); name != "" && p.CanDie(f, name) {
 				return name
 			}
 		}

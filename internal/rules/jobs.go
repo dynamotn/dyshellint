@@ -37,7 +37,7 @@ var fixedExit = regexp.MustCompile(`\bexit\s+[0-9]+\b`)
 // status. The handler decides the status of the script when it calls `exit`,
 // so `exit 0` turns a failed run into a success, and `exit 1` the reverse.
 func checkExitTrapStatus(f *File, r *Reporter) {
-	funcs := f.project().funcs
+	p := f.project()
 	eachCall(f, func(call *syntax.CallExpr, name string) {
 		if name != "trap" || len(call.Args) < 3 {
 			return
@@ -54,8 +54,8 @@ func checkExitTrapStatus(f *File, r *Reporter) {
 		}
 		handler := wordSource(call.Args[1])
 		fixed := fixedExit.MatchString(handler)
-		if names := splitWords(handler); len(names) == 1 && funcs[names[0]] != nil {
-			allCalls(funcs[names[0]].Body, func(inner *syntax.CallExpr, callee string) {
+		if names := splitWords(handler); len(names) == 1 && p.Func(f, names[0]) != nil {
+			allCalls(p.Func(f, names[0]).Body, func(inner *syntax.CallExpr, callee string) {
 				if callee == "exit" && len(inner.Args) == 2 {
 					if _, err := strconv.Atoi(wordLiteral(inner.Args[1])); err == nil {
 						fixed = true

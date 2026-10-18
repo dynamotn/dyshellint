@@ -31,7 +31,7 @@ func checkFailingProducer(f *File, r *Reporter) {
 			}
 			for _, call := range leadingCalls(stmt) {
 				name := callName(call)
-				if name == "" || !p.CanFail(name) {
+				if name == "" || !p.CanFail(f, name) {
 					continue
 				}
 				r.At(ps.Pos(), "%q can fail, but nothing sees the status of `<(...)`: a failure reads as empty output; capture the output in a variable or array first and check the status there",

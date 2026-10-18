@@ -16,4 +16,9 @@ function _install {
   curl -fsSL https://example.com/data.json | jq .
   curl -fsSL https://example.com/install.sh -o install.sh
   bash install.sh
+  curl -fsSL https://example.com/install.sh | bash -s stable
+  curl -fsSL https://example.com/install.sh | sudo bash
+  curl -fsSL https://example.com/install.sh | sudo -E env PREFIX=/opt bash -s -- --yes
+  curl -fsSL https://example.com/install.sh | bash ./install.sh stable
+  curl -fsSL https://example.com/install.sh | sudo tee /usr/local/bin/tool
 }

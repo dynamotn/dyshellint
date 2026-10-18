@@ -14,5 +14,8 @@ function _fetch {
   body="$(curl -fsSL "${url}")"
   body="$(curl --fail-with-body -sS "${url}")"
   code="$(curl -sS -o /dev/null -w '%{http_code}' "${url}")"
+  code="$(curl -sS -o /dev/null --write-out='%{http_code}' "${url}")"
+  code="$(curl -sS -o /dev/null -w'%{http_code}' "${url}")"
+  code="$(curl -sS -o /dev/null --write-out='%{size_download}' "${url}")"
   printf '%s %s\n' "${body}" "${code}"
 }

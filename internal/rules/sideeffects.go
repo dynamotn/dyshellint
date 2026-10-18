@@ -89,7 +89,7 @@ func checkLostSideEffects(f *File, r *Reporter) {
 		for _, stmt := range cs.Stmts {
 			for _, call := range leadingCalls(stmt) {
 				name := callName(call)
-				decl := p.funcs[name]
+				decl := p.Func(f, name)
 				if decl == nil {
 					continue
 				}

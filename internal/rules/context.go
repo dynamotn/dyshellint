@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"mvdan.cc/sh/v3/syntax"
 
@@ -68,6 +69,9 @@ type File struct {
 	// Project is every file of the run, linked so that a rule can follow a
 	// call into the file that defines it. Nil until Link runs.
 	Project *Project
+	// linkOnce guards the project a file builds for itself when no run linked
+	// it, since the rules of one file may ask for it at the same time.
+	linkOnce sync.Once
 }
 
 // Reporter collects the findings of one rule against one file.
@@ -235,9 +239,15 @@ func headerEnd(prog *syntax.File) int {
 
 // BaseName returns the name a file is known by, which is what the layout rules
 // of the guide are written against: `scripts/lib/package_manager.sh` gives
-// `package_manager`.
+// `package_manager`, and `lib/util.bash` gives `util`.
 func BaseName(path string) string {
-	return strings.TrimSuffix(filepath.Base(path), ".sh")
+	base := filepath.Base(path)
+	for _, ext := range []string{".sh", ".bash"} {
+		if trimmed, ok := strings.CutSuffix(base, ext); ok {
+			return trimmed
+		}
+	}
+	return base
 }
 
 // shebangOf returns the shebang of a file. A shebang pushed below a comment is

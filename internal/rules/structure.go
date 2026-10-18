@@ -93,17 +93,59 @@ func checkShebang(f *File, r *Reporter) {
 	}
 }
 
-// strictMode matches the option set the guide asks for, in any order.
-var strictMode = regexp.MustCompile(`set\s+-[a-z]*e[a-z]*u[a-z]*\s+-o\s+pipefail|set\s+-euo\s+pipefail`)
+// strictOptions are the options the guide asks for, by their long name.
+var strictOptions = []string{"errexit", "nounset", "pipefail"}
+
+// shortOptions maps the letters of `set` the rules look for to the long name
+// of their option.
+var shortOptions = map[byte]string{'e': "errexit", 'u': "nounset", 'x': "xtrace"}
 
 func checkStrictMode(f *File, r *Reporter) {
 	if f.Role != RoleEntrypoint || f.UsesDybatpho {
 		return
 	}
-	if strictMode.Match(f.Src) {
-		return
+	on := map[string]bool{}
+	eachCall(f, func(call *syntax.CallExpr, name string) {
+		if name == "set" {
+			setOptions(call, on)
+		}
+	})
+	for _, option := range strictOptions {
+		if !on[option] {
+			r.AtLine(1, "no `set -euo pipefail`; add it under the shebang, or source dybatpho, which sets it")
+			return
+		}
 	}
-	r.AtLine(1, "no `set -euo pipefail`; add it under the shebang, or source dybatpho, which sets it")
+}
+
+// setOptions adds the long name of every option a `set` call turns on to on.
+// The letters of a cluster come in any order, as in `-Eeuo pipefail`, and each
+// `o` among them takes the next word as the name of an option, the way
+// `-o errexit -o nounset` spells them out. A cluster that starts with `+`
+// turns its options off, and is only stepped over.
+func setOptions(call *syntax.CallExpr, on map[string]bool) {
+	args := call.Args[1:]
+	for i := 0; i < len(args); i++ {
+		lit := wordLiteral(args[i])
+		if len(lit) < 2 || lit[0] != '-' && lit[0] != '+' || lit == "--" {
+			// The rest are positional parameters.
+			return
+		}
+		turnsOn := lit[0] == '-'
+		for _, letter := range []byte(lit[1:]) {
+			option := shortOptions[letter]
+			if letter == 'o' {
+				if i+1 >= len(args) {
+					continue
+				}
+				i++
+				option = wordLiteral(args[i])
+			}
+			if turnsOn && option != "" {
+				on[option] = true
+			}
+		}
+	}
 }
 
 func checkSourceBuiltin(f *File, r *Reporter) {
@@ -145,13 +187,12 @@ func checkInlineTrace(f *File, r *Reporter) {
 		if name != "set" {
 			return
 		}
-		for _, arg := range call.Args[1:] {
-			if lit := wordLiteral(arg); strings.HasPrefix(lit, "-x") || lit == "-o" {
-				if strings.Contains(lit, "x") {
-					r.At(call.Pos(), "`set -x` cannot be turned off by the caller; use `dybatpho::start_trace` and `dybatpho::end_trace`")
-					return
-				}
-			}
+		// `-x` may sit in a cluster, as in `set -ex`, or be spelled out as
+		// `-o xtrace`.
+		on := map[string]bool{}
+		setOptions(call, on)
+		if on["xtrace"] {
+			r.At(call.Pos(), "`set -x` cannot be turned off by the caller; use `dybatpho::start_trace` and `dybatpho::end_trace`")
 		}
 	})
 }
@@ -169,6 +210,7 @@ func checkSudo(f *File, r *Reporter) {
 var severityWord = regexp.MustCompile(`^(?i)(error|fatal|fail(ed|ure)?|warning)\b`)
 
 func checkErrorToStderr(f *File, r *Reporter) {
+	var up map[syntax.Node]syntax.Node
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
 		if !ok {
@@ -178,26 +220,108 @@ func checkErrorToStderr(f *File, r *Reporter) {
 		if !ok || len(call.Args) < 2 {
 			return true
 		}
-		switch wordLiteral(call.Args[0]) {
-		case "echo", "printf":
-		default:
+		message := messageArg(call)
+		if message == nil || !severityWord.MatchString(strings.TrimSpace(leadingLiteral(message))) {
 			return true
 		}
-		message := wordLiteral(call.Args[len(call.Args)-1])
-		if !severityWord.MatchString(strings.TrimSpace(message)) {
-			return true
+		if up == nil {
+			up = parents(f.Syntax)
 		}
-		for _, redirect := range stmt.Redirs {
-			if word := wordLiteral(redirect.Word); word == "2" || strings.Contains(word, "&2") {
-				return true
-			}
-			if redirect.N != nil && redirect.N.Value == "2" {
-				return true
-			}
+		if toStderr(stmt, up) {
+			return true
 		}
 		r.At(stmt.Pos(), "this message goes to STDOUT; append `>&2`, or use `dybatpho::error`")
 		return true
 	})
+}
+
+// messageArg returns the word an `echo` or `printf` starts its message with:
+// the first argument past the options of `echo`, or the format of `printf`.
+// It is nil for any other command, or when there is no such word.
+func messageArg(call *syntax.CallExpr) *syntax.Word {
+	args := call.Args[1:]
+	switch wordLiteral(call.Args[0]) {
+	case "echo":
+		for len(args) > 0 && echoOptions.MatchString(wordLiteral(args[0])) {
+			args = args[1:]
+		}
+	case "printf":
+		if len(args) > 0 && wordLiteral(args[0]) == "-v" {
+			args = args[min(2, len(args)):]
+		}
+		if len(args) > 0 && wordLiteral(args[0]) == "--" {
+			args = args[1:]
+		}
+	default:
+		return nil
+	}
+	if len(args) == 0 {
+		return nil
+	}
+	return args[0]
+}
+
+// echoOptions matches the options `echo` reads instead of printing.
+var echoOptions = regexp.MustCompile(`^-[neE]+$`)
+
+// leadingLiteral returns the text a word starts with up to its first
+// expansion, so `"Error: ${msg}"` gives `Error: `.
+func leadingLiteral(word *syntax.Word) string {
+	var b strings.Builder
+	for _, part := range word.Parts {
+		switch p := part.(type) {
+		case *syntax.Lit:
+			b.WriteString(p.Value)
+		case *syntax.SglQuoted:
+			b.WriteString(p.Value)
+		case *syntax.DblQuoted:
+			for _, inner := range p.Parts {
+				lit, ok := inner.(*syntax.Lit)
+				if !ok {
+					return b.String()
+				}
+				b.WriteString(lit.Value)
+			}
+		default:
+			return b.String()
+		}
+	}
+	return b.String()
+}
+
+// toStderr reports whether what a statement prints goes to STDERR: through a
+// redirect of its own, or of a `{ ...; }` or `( ... )` it sits in.
+func toStderr(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
+	for {
+		if redirectsToStderr(stmt) {
+			return true
+		}
+		switch up[stmt].(type) {
+		case *syntax.Block, *syntax.Subshell:
+		default:
+			return false
+		}
+		outer, ok := up[up[stmt]].(*syntax.Stmt)
+		if !ok {
+			return false
+		}
+		stmt = outer
+	}
+}
+
+// redirectsToStderr reports whether a statement carries a redirect to `&2` or
+// `/dev/stderr`.
+func redirectsToStderr(stmt *syntax.Stmt) bool {
+	for _, redirect := range stmt.Redirs {
+		word := wordLiteral(redirect.Word)
+		if word == "2" || strings.Contains(word, "&2") || word == "/dev/stderr" {
+			return true
+		}
+		if redirect.N != nil && redirect.N.Value == "2" {
+			return true
+		}
+	}
+	return false
 }
 
 func checkExecutableBit(f *File, r *Reporter) {

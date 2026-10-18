@@ -161,10 +161,10 @@ func pinnedByCase(call *syntax.CallExpr, target *syntax.ParamExp, up map[syntax.
 
 func checkCallerNamedLocals(f *File, r *Reporter) {
 	eachFunc(f, func(decl *syntax.FuncDecl) {
-		if !isPublicFunc(decl) || !f.project().WritesCallerName(decl.Name.Value) {
+		if !isPublicFunc(decl) || !f.project().WritesCallerName(decl) {
 			return
 		}
-		last, ok := nameHazard(f.project(), decl)
+		last, ok := nameHazard(f, decl)
 		if !ok {
 			return
 		}
@@ -197,7 +197,8 @@ func privatePrefix(f *File, decl *syntax.FuncDecl) string {
 // use, so every local counts; a `printf -v` or `read` into the name, or a call
 // that hands the name to a writer, resolves it there and then, so a local
 // declared afterwards cannot be mistaken for the caller's variable.
-func nameHazard(p *Project, decl *syntax.FuncDecl) (syntax.Pos, bool) {
+func nameHazard(f *File, decl *syntax.FuncDecl) (syntax.Pos, bool) {
+	p := f.project()
 	fed := fedIndex(decl)
 	var last syntax.Pos
 	found := false
@@ -231,7 +232,7 @@ func nameHazard(p *Project, decl *syntax.FuncDecl) (syntax.Pos, bool) {
 				}
 				return true
 			}
-			for position := range p.writers[callName(n)] {
+			for position := range p.writers[p.Func(f, callName(n))] {
 				if position >= 1 && position < len(n.Args) && argPosition(n.Args[position], fed) >= 1 {
 					mark(n.Pos())
 				}
