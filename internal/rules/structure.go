@@ -210,6 +210,7 @@ func checkSudo(f *File, r *Reporter) {
 var severityWord = regexp.MustCompile(`^(?i)(error|fatal|fail(ed|ure)?|warning)\b`)
 
 func checkErrorToStderr(f *File, r *Reporter) {
+	var up map[syntax.Node]syntax.Node
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
 		if !ok {
@@ -219,26 +220,108 @@ func checkErrorToStderr(f *File, r *Reporter) {
 		if !ok || len(call.Args) < 2 {
 			return true
 		}
-		switch wordLiteral(call.Args[0]) {
-		case "echo", "printf":
-		default:
+		message := messageArg(call)
+		if message == nil || !severityWord.MatchString(strings.TrimSpace(leadingLiteral(message))) {
 			return true
 		}
-		message := wordLiteral(call.Args[len(call.Args)-1])
-		if !severityWord.MatchString(strings.TrimSpace(message)) {
-			return true
+		if up == nil {
+			up = parents(f.Syntax)
 		}
-		for _, redirect := range stmt.Redirs {
-			if word := wordLiteral(redirect.Word); word == "2" || strings.Contains(word, "&2") {
-				return true
-			}
-			if redirect.N != nil && redirect.N.Value == "2" {
-				return true
-			}
+		if toStderr(stmt, up) {
+			return true
 		}
 		r.At(stmt.Pos(), "this message goes to STDOUT; append `>&2`, or use `dybatpho::error`")
 		return true
 	})
+}
+
+// messageArg returns the word an `echo` or `printf` starts its message with:
+// the first argument past the options of `echo`, or the format of `printf`.
+// It is nil for any other command, or when there is no such word.
+func messageArg(call *syntax.CallExpr) *syntax.Word {
+	args := call.Args[1:]
+	switch wordLiteral(call.Args[0]) {
+	case "echo":
+		for len(args) > 0 && echoOptions.MatchString(wordLiteral(args[0])) {
+			args = args[1:]
+		}
+	case "printf":
+		if len(args) > 0 && wordLiteral(args[0]) == "-v" {
+			args = args[min(2, len(args)):]
+		}
+		if len(args) > 0 && wordLiteral(args[0]) == "--" {
+			args = args[1:]
+		}
+	default:
+		return nil
+	}
+	if len(args) == 0 {
+		return nil
+	}
+	return args[0]
+}
+
+// echoOptions matches the options `echo` reads instead of printing.
+var echoOptions = regexp.MustCompile(`^-[neE]+$`)
+
+// leadingLiteral returns the text a word starts with up to its first
+// expansion, so `"Error: ${msg}"` gives `Error: `.
+func leadingLiteral(word *syntax.Word) string {
+	var b strings.Builder
+	for _, part := range word.Parts {
+		switch p := part.(type) {
+		case *syntax.Lit:
+			b.WriteString(p.Value)
+		case *syntax.SglQuoted:
+			b.WriteString(p.Value)
+		case *syntax.DblQuoted:
+			for _, inner := range p.Parts {
+				lit, ok := inner.(*syntax.Lit)
+				if !ok {
+					return b.String()
+				}
+				b.WriteString(lit.Value)
+			}
+		default:
+			return b.String()
+		}
+	}
+	return b.String()
+}
+
+// toStderr reports whether what a statement prints goes to STDERR: through a
+// redirect of its own, or of a `{ ...; }` or `( ... )` it sits in.
+func toStderr(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
+	for {
+		if redirectsToStderr(stmt) {
+			return true
+		}
+		switch up[stmt].(type) {
+		case *syntax.Block, *syntax.Subshell:
+		default:
+			return false
+		}
+		outer, ok := up[up[stmt]].(*syntax.Stmt)
+		if !ok {
+			return false
+		}
+		stmt = outer
+	}
+}
+
+// redirectsToStderr reports whether a statement carries a redirect to `&2` or
+// `/dev/stderr`.
+func redirectsToStderr(stmt *syntax.Stmt) bool {
+	for _, redirect := range stmt.Redirs {
+		word := wordLiteral(redirect.Word)
+		if word == "2" || strings.Contains(word, "&2") || word == "/dev/stderr" {
+			return true
+		}
+		if redirect.N != nil && redirect.N.Value == "2" {
+			return true
+		}
+	}
+	return false
 }
 
 func checkExecutableBit(f *File, r *Reporter) {
