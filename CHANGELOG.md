@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are reported as a usage error with status `2`, even when no shell file is
   found.
 - `--format json` prints `"findings": []` rather than `null` for a clean run.
+- `BSG104` no longer asks a script that loads dybatpho to turn on
+  `inherit_errexit`, which dybatpho already does.
 - `--stdin-filename` with a name such as `..` keeps the temporary copy inside
   its own directory.
 

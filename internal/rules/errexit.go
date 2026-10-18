@@ -36,9 +36,10 @@ func init() {
 // checkInheritErrexit reports an entrypoint that relies on `set -e` and runs
 // command substitutions without `inherit_errexit`: inside `$(a; b)` errexit is
 // off, so a failing `a` is ignored and the substitution goes on to `b`.
-// dybatpho turns on the strict mode but leaves this option to the script.
+// dybatpho turns this option on along with the strict mode, so a script that
+// loads it has nothing to add.
 func checkInheritErrexit(f *File, r *Reporter) {
-	if f.Role != RoleEntrypoint || !stopsOnError(f) || setsShopt(f, "inherit_errexit") {
+	if f.Role != RoleEntrypoint || !stopsOnError(f) || setsShopt(f, "inherit_errexit") || loadsDybatpho(f) {
 		return
 	}
 	// A substitution of one external command fails as a whole, which
@@ -68,12 +69,18 @@ func checkInheritErrexit(f *File, r *Reporter) {
 	}
 	line := 1
 	for i, text := range f.Lines {
-		if errexitPattern.MatchString(text) || dybatphoSource.MatchString(text) && bytes.Contains([]byte(text), []byte("init.sh")) {
+		if errexitPattern.MatchString(text) {
 			line = i + 1
 			break
 		}
 	}
 	r.AtLine(line, "errexit is off inside `$(...)`, so a failing command there is ignored and the substitution carries on; add `shopt -s inherit_errexit` next to `set -euo pipefail`")
+}
+
+// loadsDybatpho reports whether a file sources the init script of dybatpho,
+// rather than only calling functions some other file loaded.
+func loadsDybatpho(f *File) bool {
+	return f.UsesDybatpho && bytes.Contains(f.Src, []byte("init.sh"))
 }
 
 // setsShopt reports whether a file turns on a `shopt` option.
