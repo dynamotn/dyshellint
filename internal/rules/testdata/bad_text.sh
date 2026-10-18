@@ -11,6 +11,10 @@ set -euo pipefail
 function _print {
 	printf "%s\\n" "a" 
   printf "%s\\n" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  cat << 'MK'
+all: 
+	printf 'x\n'
+MK
 }
 
 _print
