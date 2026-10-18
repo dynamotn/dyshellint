@@ -5,6 +5,9 @@
 #   advance, and `>`, `touch` and `mkdir -p` all go along with what is there.
 set -euo pipefail
 
+printf 'x\n' > "build-$$.log"
+touch "out.$RANDOM"
+
 #######################################
 # @description Make scratch files, every way
 # @arg $1 string Directory to work in

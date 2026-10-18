@@ -30,11 +30,15 @@ func checkGuessablePathWrite(f *File, r *Reporter) {
 		r.At(word.Pos(), "%s is guessable, and %s follows a link planted at it or reuses what is there; create it with `mktemp`, `dybatpho::create_temp`, or under `set -C`",
 			wordSource(word), how)
 	}
-	eachFunc(f, func(decl *syntax.FuncDecl) {
-		if setsNoclobber(decl) {
+	check := func(scope syntax.Node) {
+		if setsNoclobber(scope) {
 			return
 		}
-		syntax.Walk(decl.Body, func(node syntax.Node) bool {
+		syntax.Walk(scope, func(node syntax.Node) bool {
+			// A function is checked on its own, under its own `set -C`.
+			if decl, ok := node.(*syntax.FuncDecl); ok && decl != scope {
+				return false
+			}
 			stmt, ok := node.(*syntax.Stmt)
 			if !ok {
 				return true
@@ -65,7 +69,10 @@ func checkGuessablePathWrite(f *File, r *Reporter) {
 			}
 			return true
 		})
-	})
+	}
+	eachFunc(f, func(decl *syntax.FuncDecl) { check(decl) })
+	// The top level is a scope of its own: the code outside every function.
+	check(f.Syntax)
 }
 
 func hasGuessablePart(word *syntax.Word) bool {
@@ -91,11 +98,14 @@ func hasFlag(call *syntax.CallExpr, letter byte) bool {
 	return false
 }
 
-// setsNoclobber reports whether a function turns on `set -C`, under which `>`
-// refuses a name that already exists.
-func setsNoclobber(decl *syntax.FuncDecl) bool {
+// setsNoclobber reports whether a function, or the top level of a file,
+// turns on `set -C`, under which `>` refuses a name that already exists.
+func setsNoclobber(scope syntax.Node) bool {
+	if decl, ok := scope.(*syntax.FuncDecl); ok {
+		scope = decl.Body
+	}
 	found := false
-	allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
+	allCalls(scope, func(call *syntax.CallExpr, name string) {
 		if name != "set" {
 			return
 		}
