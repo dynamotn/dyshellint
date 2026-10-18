@@ -49,7 +49,10 @@ func checkCatSubstitution(f *File, r *Reporter) {
 		stmt := cs.Stmts[0]
 		call, ok := stmt.Cmd.(*syntax.CallExpr)
 		if !ok || stmt.Negated || stmt.Background || len(stmt.Redirs) > 0 || len(call.Assigns) > 0 ||
-			callName(call) != "cat" || len(call.Args) != 2 || strings.HasPrefix(wordSource(call.Args[1]), "-") {
+			callName(call) != "cat" || len(call.Args) != 2 || strings.HasPrefix(wordSource(call.Args[1]), "-") ||
+			expandsToSeveral(call.Args[1]) {
+			// `$(< ./*.conf)` and `$(< "$@")` are an ambiguous redirect as soon
+			// as the word names more than one file, where `cat` reads them all.
 			return true
 		}
 		r.At(cs.Pos(), "`$(cat %s)` starts a process to read a file; `$(< %s)` does the same in the shell", wordSource(call.Args[1]), wordSource(call.Args[1]))
@@ -75,7 +78,7 @@ func checkFieldSplit(f *File, r *Reporter) {
 				return true
 			}
 			left, ok := n.X.Cmd.(*syntax.CallExpr)
-			if !ok || (callName(left) != "echo" && callName(left) != "printf") {
+			if !ok || (callName(left) != "echo" && callName(left) != "printf") || printsLines(left) {
 				return true
 			}
 			right, ok := n.Y.Cmd.(*syntax.CallExpr)
@@ -102,6 +105,52 @@ func checkFieldSplit(f *File, r *Reporter) {
 		}
 		return true
 	})
+}
+
+// printsLines reports whether a `printf` repeats its format over several
+// values, as in `printf '%s\n' "${entries[@]}"`, and so prints a line for
+// each: `read <<<` would split only the first of them.
+func printsLines(call *syntax.CallExpr) bool {
+	if callName(call) != "printf" || len(call.Args) < 3 {
+		return false
+	}
+	values := call.Args[2:]
+	return len(values) > 1 || expandsToSeveral(values[0])
+}
+
+// expandsToSeveral reports whether a word can expand to more than one word:
+// it has an unquoted glob, or it lists `$@` or a whole array. `$*` and
+// `${a[*]}` join into one word between double quotes, and list only without.
+func expandsToSeveral(word *syntax.Word) bool {
+	lists := func(pe *syntax.ParamExp, quoted bool) bool {
+		if pe.Length || pe.Param == nil {
+			return false
+		}
+		which := pe.Param.Value
+		if index, ok := pe.Index.(*syntax.Word); ok {
+			which = wordLiteral(index)
+		}
+		return which == "@" || (which == "*" && !quoted)
+	}
+	for _, part := range word.Parts {
+		switch p := part.(type) {
+		case *syntax.Lit:
+			if strings.ContainsAny(p.Value, "*?[") {
+				return true
+			}
+		case *syntax.ParamExp:
+			if lists(p, false) {
+				return true
+			}
+		case *syntax.DblQuoted:
+			for _, inner := range p.Parts {
+				if pe, ok := inner.(*syntax.ParamExp); ok && lists(pe, true) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // fieldSplitter reports whether a call only cuts fields out of its input,

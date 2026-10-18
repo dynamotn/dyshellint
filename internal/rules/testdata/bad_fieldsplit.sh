@@ -16,6 +16,11 @@ function _fields {
   printf '%s\n' "${record}" | awk '{ total += $1 } END { print total }'
   prefix="$(printf '%s' "${record}" | cut -c1-4)"
   IFS=: read -r user _ _ _ _ home _ <<< "${record}"
+  local -a entries=("${record}" "${record}")
+  printf '%s\n' "${entries[@]}" | cut -d: -f1
+  printf '%s\n' "${entries[@]:1}" | awk -F: '{print $1}'
+  printf '%s\n' "${user}" "${home}" | cut -d: -f1
+  printf '%s\n' "${entries[*]}" | cut -d: -f1
   printf '%s %s %s\n' "${user}" "${home}" "${prefix}"
 }
 

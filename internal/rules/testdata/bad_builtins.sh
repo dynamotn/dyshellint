@@ -20,6 +20,9 @@ function _read {
   version="$(< "${file}")"
   version="$(cat -- "${file}")"
   version="$(cat "${file}" | head -n 1)"
+  version="$(cat ./*.conf)"
+  version="$(cat "$@")"
+  version="$(cat "${file}"-[0-9])"
   printf '%s\n' "${version}"
 }
 
