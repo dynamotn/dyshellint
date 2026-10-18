@@ -110,9 +110,12 @@ func checkSourcedConfig(f *File, r *Reporter) {
 			arg = call.Args[2]
 		}
 		src := wordSource(arg)
+		// Only a path that starts in a shared directory lives there: a
+		// `build/tmp/` next to the script belongs to whoever owns the script.
+		path := strings.TrimLeft(src, `"'`)
 		inShared := false
 		for _, dir := range worldWritable {
-			if strings.Contains(src, dir+"/") {
+			if strings.HasPrefix(path, dir+"/") {
 				inShared = true
 			}
 		}
