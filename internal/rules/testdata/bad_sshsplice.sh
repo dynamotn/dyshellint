@@ -34,6 +34,8 @@ function _report {
     declare -f report::disk_usage
     printf 'report::disk_usage %s\n' "${dir@Q}"
   } | timeout 300 ssh -o ConnectTimeout=10 -o BatchMode=yes -- "${host}" bash -s
+  timeout -k
+  timeout -s
 }
 
 _report "$@"

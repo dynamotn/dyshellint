@@ -149,7 +149,9 @@ func unwrapCall(call *syntax.CallExpr) []*syntax.Word {
 		case "timeout":
 			args = args[1:]
 			for len(args) > 0 && strings.HasPrefix(wordLiteral(args[0]), "-") {
-				if lit := wordLiteral(args[0]); lit == "-s" || lit == "-k" {
+				// `-s` and `-k` take the next word, which a line cut short, such
+				// as `timeout -k`, does not have.
+				if lit := wordLiteral(args[0]); (lit == "-s" || lit == "-k") && len(args) > 1 {
 					args = args[1:]
 				}
 				args = args[1:]
