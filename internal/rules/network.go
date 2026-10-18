@@ -111,15 +111,24 @@ func checkCurlWithoutFail(f *File, r *Reporter) {
 }
 
 // checksHTTPCode reports whether a call asks curl for the status code, which
-// the caller then checks itself.
+// the caller then checks itself. The format may be the next word, or joined to
+// the option, as in `--write-out='%{http_code}'` or `-w'%{http_code}'`.
 func checksHTTPCode(call *syntax.CallExpr) bool {
 	for i, arg := range call.Args[1:] {
-		lit := wordLiteral(arg)
-		if (lit == "-w" || lit == "--write-out") && i+2 < len(call.Args) {
-			src := wordSource(call.Args[i+2])
-			if strings.Contains(src, "http_code") || strings.Contains(src, "response_code") {
-				return true
+		src := wordSource(arg)
+		var format string
+		switch lit := wordLiteral(arg); {
+		case lit == "-w" || lit == "--write-out":
+			if i+2 < len(call.Args) {
+				format = wordSource(call.Args[i+2])
 			}
+		case strings.HasPrefix(src, "--write-out="):
+			format = strings.TrimPrefix(src, "--write-out=")
+		case strings.HasPrefix(src, "-w"):
+			format = strings.TrimPrefix(src, "-w")
+		}
+		if strings.Contains(format, "http_code") || strings.Contains(format, "response_code") {
+			return true
 		}
 	}
 	return false
