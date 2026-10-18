@@ -148,8 +148,11 @@ type namePass struct {
 	fed map[string]int
 }
 
-// spread works out canDie, canFail, runners and writers to a fixed point over
-// the call graph of every function.
+// spread works out canDie, canFail, runners and writers over the call graph of
+// every function. Each graph is walked backwards from the functions marked on
+// their own, so that a function is visited again only when one it calls has
+// just been marked, rather than every edge being tried once per level of a
+// long call chain.
 func (p *Project) spread() {
 	dieCallers := map[*syntax.FuncDecl][]*syntax.FuncDecl{}
 	codeCallers := map[*syntax.FuncDecl][]*syntax.FuncDecl{}
@@ -159,46 +162,33 @@ func (p *Project) spread() {
 			p.scanCalls(f, decl, dieCallers, codeCallers, nameCallers)
 		})
 	}
-	for changed := true; changed; {
-		changed = false
-		for callee, callers := range dieCallers {
-			if !p.canDie[callee] {
-				continue
-			}
-			for _, caller := range callers {
-				if !p.canDie[caller] && !argumentGuards[caller.Name.Value] {
-					p.canDie[caller] = true
-					changed = true
+	reach(p.canDie, dieCallers, func(decl *syntax.FuncDecl) bool { return argumentGuards[decl.Name.Value] })
+	reach(p.runners, codeCallers, func(*syntax.FuncDecl) bool { return false })
+	queue := make([]*syntax.FuncDecl, 0, len(p.writers))
+	for decl := range p.writers {
+		queue = append(queue, decl)
+	}
+	for len(queue) > 0 {
+		callee := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+		for _, pass := range nameCallers[callee] {
+			grew := false
+			for position := range p.writers[callee] {
+				if position < 1 || position >= len(pass.call.Args) {
+					continue
 				}
-			}
-		}
-		for callee, passes := range nameCallers {
-			for _, pass := range passes {
-				for position := range p.writers[callee] {
-					if position < 1 || position >= len(pass.call.Args) {
-						continue
-					}
-					mine := argPosition(pass.call.Args[position], pass.fed)
-					if mine < 1 || p.writers[pass.caller][mine] {
-						continue
-					}
-					if p.writers[pass.caller] == nil {
-						p.writers[pass.caller] = map[int]bool{}
-					}
-					p.writers[pass.caller][mine] = true
-					changed = true
+				mine := argPosition(pass.call.Args[position], pass.fed)
+				if mine < 1 || p.writers[pass.caller][mine] {
+					continue
 				}
-			}
-		}
-		for callee, callers := range codeCallers {
-			if !p.runners[callee] {
-				continue
-			}
-			for _, caller := range callers {
-				if !p.runners[caller] {
-					p.runners[caller] = true
-					changed = true
+				if p.writers[pass.caller] == nil {
+					p.writers[pass.caller] = map[int]bool{}
 				}
+				p.writers[pass.caller][mine] = true
+				grew = true
+			}
+			if grew {
+				queue = append(queue, pass.caller)
 			}
 		}
 	}
@@ -250,6 +240,27 @@ func (p *Project) scanCalls(f *File, decl *syntax.FuncDecl, dieCallers, codeCall
 	})
 	if direct := writerParams(decl); len(direct) > 0 {
 		p.writers[decl] = direct
+	}
+}
+
+// reach marks every function that calls one already marked, directly or
+// through others, except those skip refuses. Each function marked is queued
+// once, and only its own callers are looked at.
+func reach(marked map[*syntax.FuncDecl]bool, callers map[*syntax.FuncDecl][]*syntax.FuncDecl, skip func(*syntax.FuncDecl) bool) {
+	queue := make([]*syntax.FuncDecl, 0, len(marked))
+	for decl := range marked {
+		queue = append(queue, decl)
+	}
+	for len(queue) > 0 {
+		decl := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+		for _, caller := range callers[decl] {
+			if marked[caller] || skip(caller) {
+				continue
+			}
+			marked[caller] = true
+			queue = append(queue, caller)
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -96,6 +97,22 @@ func TestOtherDefinitionIsStable(t *testing.T) {
 		if got := linkAndRun(t, "BSG047", order...); !reflect.DeepEqual(got, want) {
 			t.Errorf("order %s %s %s: got %v, want %v", order[0].path, order[1].path, order[2].path, got, want)
 		}
+	}
+}
+
+// TestLongCallChain follows a call through thousands of functions to the one
+// that dies, which a pass over every edge per level made take seconds.
+func TestLongCallChain(t *testing.T) {
+	const depth = 8000
+	var b strings.Builder
+	b.WriteString("#!/usr/bin/env bash\n")
+	for i := range depth - 1 {
+		fmt.Fprintf(&b, "function _f%d {\n  _f%d\n}\n", i, i+1)
+	}
+	fmt.Fprintf(&b, "function _f%d {\n  exit 1\n}\n", depth-1)
+	b.WriteString("function _main {\n  local text\n  text=\"$(_f0)\"\n  printf '%s\\n' \"${text}\"\n}\n_main\n")
+	if got := linkAndRun(t, "BSG047", source{"chain.sh", b.String()}); len(got) != 1 {
+		t.Errorf("want the substitution of _f0 reported once, got %v", got)
 	}
 }
 
