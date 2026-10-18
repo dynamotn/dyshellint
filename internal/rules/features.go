@@ -161,16 +161,13 @@ func checkBracedSpecialParams(f *File, r *Reporter) {
 }
 
 func checkExitStatusInspection(f *File, r *Reporter) {
+	up := parents(f.Syntax)
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
-		if !ok {
+		if !ok || !testsStatus(stmt) || readsStatusInList(stmt, up) {
 			return true
 		}
-		test, ok := stmt.Cmd.(*syntax.TestClause)
-		if ok {
-			reportStatusRef(f, r, test)
-			return true
-		}
+		reportStatusRef(r, stmt.Cmd)
 		return true
 	})
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
@@ -185,8 +182,29 @@ func checkExitStatusInspection(f *File, r *Reporter) {
 	})
 }
 
+// testsStatus reports whether a statement is a test, in any of its spellings:
+// `[[ ]]`, `(( ))`, `[ ]` and `test`.
+func testsStatus(stmt *syntax.Stmt) bool {
+	switch cmd := stmt.Cmd.(type) {
+	case *syntax.TestClause, *syntax.ArithmCmd:
+		return true
+	case *syntax.CallExpr:
+		name := callName(cmd)
+		return name == "[" || name == "test"
+	}
+	return false
+}
+
+// readsStatusInList reports whether a test is the right-hand side of `&&` or
+// `||`, as in `grep -q foo file || [[ $? -eq 1 ]]`: there `$?` is the status
+// of the command just before it, and no line can come between the two.
+func readsStatusInList(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
+	bin, ok := up[stmt].(*syntax.BinaryCmd)
+	return ok && bin.Y == stmt && (bin.Op == syntax.AndStmt || bin.Op == syntax.OrStmt)
+}
+
 // reportStatusRef flags `[[ $? -ne 0 ]]`, the form the guide rejects.
-func reportStatusRef(f *File, r *Reporter, test *syntax.TestClause) {
+func reportStatusRef(r *Reporter, test syntax.Node) {
 	syntax.Walk(test, func(node syntax.Node) bool {
 		exp, ok := node.(*syntax.ParamExp)
 		if !ok || exp.Param == nil || exp.Param.Value != "?" {

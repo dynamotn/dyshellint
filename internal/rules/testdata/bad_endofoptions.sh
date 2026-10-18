@@ -19,4 +19,6 @@ function _handle {
   cat "./${path}"
   cp "/srv/${path}" "${path}.bak"
   mkdir -m 700 -- "${path}"
+  grep --ignore-case "${pattern}" "${path}"
+  grep -ie "${pattern}" -- "${path}"
 }

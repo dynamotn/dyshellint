@@ -59,7 +59,9 @@ func checkUnguardedPrompt(f *File, r *Reporter) {
 }
 
 // readsStream reports whether a `read` consumes a stream rather than asking
-// the user: the condition of a loop, or the end of a pipeline.
+// the user: the condition of a loop, or the end of a pipeline. A group such as
+// `{ read -r a; read -r b; } < file` or `... | { read -r x; }` hands its
+// input to every `read` inside it.
 func readsStream(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
 	var cur syntax.Node = stmt
 	for {
@@ -77,9 +79,34 @@ func readsStream(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
 			}
 			cur = parent
 			continue
+		case *syntax.Block, *syntax.Subshell:
+			group, ok := up[p].(*syntax.Stmt)
+			if !ok {
+				return false
+			}
+			if redirectsInput(group) {
+				return true
+			}
+			cur = group
+			continue
 		}
 		return false
 	}
+}
+
+// redirectsInput reports whether a statement takes its standard input from a
+// file, a here-document or a here-string.
+func redirectsInput(stmt *syntax.Stmt) bool {
+	for _, redir := range stmt.Redirs {
+		if redir.N != nil && redir.N.Value != "0" {
+			continue
+		}
+		switch redir.Op {
+		case syntax.RdrIn, syntax.RdrInOut, syntax.DplIn, syntax.Hdoc, syntax.DashHdoc, syntax.WordHdoc:
+			return true
+		}
+	}
+	return false
 }
 
 // hasArrayArgument reports whether a call takes options from an array, which

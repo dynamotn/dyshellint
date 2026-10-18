@@ -12,3 +12,9 @@ function _undocumented {
 function _partly_documented {
   printf '%s\n' "$1"
 }
+
+# TODO @alice: rewrite the loop
+# TODO: @bob check the format
+# TODO: document the flags with @arg tags
+# TODO @arg tags for the flags
+# TODO: ask bob@example.com about the format

@@ -15,6 +15,10 @@ function _run {
   date 2>&1 > "${log}"
   date &> "${log}"
   date 2>&1 | tee -- "${log}"
+  local err
+  err="$(date 2>&1 > /dev/null)"
+  date 2>&1 > /dev/null | grep -q -- "${err}"
+  date 2>&1 > "${log}" || true
 }
 
 _run "$@"

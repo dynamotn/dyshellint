@@ -25,6 +25,14 @@ function _main {
   dybatpho::info "${name} ${temp_file}"
 }
 
+#######################################
+# @description Print the user names, with no argument of its own
+# @noargs
+#######################################
+function _users {
+  awk -F: '{ print $1 }' /etc/passwd
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --name) shift ;;

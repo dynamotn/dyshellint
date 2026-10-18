@@ -26,9 +26,9 @@ func init() {
 var tempMaker = regexp.MustCompile(`mktemp|create_temp`)
 
 func checkUnguardedDestruction(f *File, r *Reporter) {
-	eachFunc(f, func(decl *syntax.FuncDecl) {
-		guarded := guardedVars(decl)
-		allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
+	check := func(root syntax.Node) {
+		guarded := guardedVars(root)
+		allCalls(root, func(call *syntax.CallExpr, name string) {
 			if !destroysRecursively(call, name) {
 				return
 			}
@@ -43,7 +43,12 @@ func checkUnguardedDestruction(f *File, r *Reporter) {
 				}
 			}
 		})
-	})
+	}
+	eachFunc(f, func(decl *syntax.FuncDecl) { check(decl.Body) })
+	// A script deletes at its top level as often as inside a function;
+	// allCalls leaves the function bodies out there, so nothing is reported
+	// twice.
+	check(f.Syntax)
 }
 
 func destroysRecursively(call *syntax.CallExpr, name string) bool {
@@ -82,18 +87,27 @@ func unguardedVar(word *syntax.Word, guarded map[string]bool) string {
 		if pe.Exp != nil && (pe.Exp.Op == syntax.ErrorUnset || pe.Exp.Op == syntax.ErrorUnsetOrNull) {
 			return false
 		}
+		// `${dir:-build}` and `${dir:=build}` fall back to their text when
+		// the variable is empty, so they never expand to nothing. The forms
+		// without a colon do not count: a variable set to "" stays empty.
+		if pe.Exp != nil && (pe.Exp.Op == syntax.DefaultUnsetOrNull || pe.Exp.Op == syntax.AssignUnsetOrNull) &&
+			pe.Exp.Word != nil && hasLiteralText(pe.Exp.Word) {
+			return false
+		}
 		found = pe.Param.Value
 		return false
 	})
 	return found
 }
 
-// guardedVars returns the variables a function checks before using: any it
-// tests with `[[ ]]`, any a temporary-file helper fills, and any it passes
-// to a path-safety check. A `:?` guards only the expansion that carries it.
-func guardedVars(decl *syntax.FuncDecl) map[string]bool {
+// guardedVars returns the variables a function body, or the top level of a
+// script, checks before using: any it tests with `[[ ]]`, any a
+// temporary-file helper fills, and any it passes to a path-safety check. A
+// `:?` guards only the expansion that carries it. The bodies of functions
+// declared under root are a scope of their own and are left out.
+func guardedVars(root syntax.Node) map[string]bool {
 	out := map[string]bool{}
-	syntax.Walk(decl.Body, func(node syntax.Node) bool {
+	walkScope(root, true, func(node syntax.Node) {
 		switch n := node.(type) {
 		case *syntax.TestClause:
 			syntax.Walk(n, func(inner syntax.Node) bool {
@@ -121,7 +135,6 @@ func guardedVars(decl *syntax.FuncDecl) map[string]bool {
 				}
 			}
 		}
-		return true
 	})
 	return out
 }

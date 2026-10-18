@@ -49,3 +49,23 @@ function libstate::trace {
   set -x
   shopt -s >&2
 }
+
+#######################################
+# @description Save every option, change some, and put them all back
+# @noargs
+#######################################
+function libstate::saved {
+  local saved
+  saved="$(set +o)"
+  set -e
+  eval "${saved}"
+}
+
+#######################################
+# @description Add an option word to the positional parameters
+# @noargs
+#######################################
+function libstate::positional {
+  set -- -a "$@"
+  printf '%s\n' "$@"
+}

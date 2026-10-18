@@ -14,6 +14,7 @@ function _compress {
   find "${root}" -name '*.log' -exec gzip -- {} +
   find "${root}" -name '*.bak' -exec mv -- {} {}.old \;
   find "${root}" -type d -exec chmod 0755 {} ';'
+  find "${root}" -type f -exec grep -q -- foo {} \; -print
 }
 
 _compress "$@"

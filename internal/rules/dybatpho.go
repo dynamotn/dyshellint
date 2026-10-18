@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"regexp"
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
@@ -47,21 +46,32 @@ func init() {
 	)
 }
 
-// positionalDigit matches a read of `$1` … `$9`, braced or not.
-var positionalDigit = regexp.MustCompile(`\$\{?[1-9]\}?`)
-
 func checkExpectArgs(f *File, r *Reporter) {
 	if !f.UsesDybatpho {
 		return
 	}
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		body := f.Text(decl.Body.Pos(), decl.Body.End())
-		if strings.Contains(body, "expect_args") || !positionalDigit.MatchString(body) {
+		if strings.Contains(body, "expect_args") || !readsPositionalDigit(decl) {
 			return
 		}
 		r.At(decl.Position, "%q reads its arguments positionally; name them with `dybatpho::expect_args name... -- \"$@\"`",
 			decl.Name.Value)
 	})
+}
+
+// readsPositionalDigit reports whether a function expands `$1` … `$9`,
+// braced or not. It looks at the expansions themselves, so the `$1` of an
+// awk program in single quotes, or of a nested function, is not one.
+func readsPositionalDigit(decl *syntax.FuncDecl) bool {
+	found := false
+	walkScope(decl.Body, true, func(node syntax.Node) {
+		if pe, ok := node.(*syntax.ParamExp); ok && pe.Param != nil && isPositionalParam(pe.Param.Value) &&
+			pe.Param.Value != "@" && pe.Param.Value != "*" {
+			found = true
+		}
+	})
+	return found
 }
 
 func checkHandRolledParsing(f *File, r *Reporter) {

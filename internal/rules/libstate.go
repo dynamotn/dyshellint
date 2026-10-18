@@ -46,16 +46,17 @@ func checkLibraryShellState(f *File, r *Reporter) {
 				what, decl.Name.Value)
 		}
 		restored := restoredState(decl)
+		saved := savesOptions(decl)
 		allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
 			switch name {
 			case "set":
 				if restored["set"] {
 					return
 				}
-				if localOptions || strings.Contains(text, "$-") || strings.Contains(text, "set +o\n") {
+				if localOptions || saved || strings.Contains(text, "$-") {
 					return
 				}
-				for _, arg := range call.Args[1:] {
+				for _, arg := range setOptions(call) {
 					lit := wordLiteral(arg)
 					if lit == "-o" || lit == "+o" || (len(lit) > 1 && (lit[0] == '-' || lit[0] == '+') && strings.ContainsAny(lit[1:], scopedOptions)) {
 						report(call, "`set "+lit+"`")
@@ -125,7 +126,7 @@ func restoredState(decl *syntax.FuncDecl) map[string]bool {
 	allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
 		switch name {
 		case "set":
-			for _, arg := range call.Args[1:] {
+			for _, arg := range setOptions(call) {
 				lit := wordLiteral(arg)
 				if len(lit) < 2 || (lit[0] != '-' && lit[0] != '+') {
 					continue
@@ -163,6 +164,32 @@ func restoredState(decl *syntax.FuncDecl) map[string]bool {
 		return true
 	})
 	return out
+}
+
+// setOptions returns the words of a `set` call up to `--` or `-`, after
+// which every word is a positional parameter: `set -- -a "$@"` sets `$1` to
+// `-a` and turns no option on.
+func setOptions(call *syntax.CallExpr) []*syntax.Word {
+	args := call.Args[1:]
+	for i, arg := range args {
+		if lit := wordLiteral(arg); lit == "--" || lit == "-" {
+			return args[:i]
+		}
+	}
+	return args
+}
+
+// savesOptions reports whether a function saves every shell option with a
+// bare `set +o`, as in `saved="$(set +o)"; ...; eval "${saved}"`, which
+// prints the commands that put them all back.
+func savesOptions(decl *syntax.FuncDecl) bool {
+	found := false
+	allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
+		if name == "set" && len(call.Args) == 2 && wordLiteral(call.Args[1]) == "+o" {
+			found = true
+		}
+	})
+	return found
 }
 
 // hasOperand reports whether a call has a word that is not an option.
