@@ -59,3 +59,16 @@ function _proceed_with_options {
   read "${options[@]}" answer || true
   printf '%s\n' "${answer}"
 }
+
+#######################################
+# @description Read lines from a file and a pipe through a group
+# @arg $1 string File
+#######################################
+function _read_grouped {
+  local first second piped
+  { read -r first; read -r second; } < "$1"
+  printf '%s\n' "$1" | { read -r piped; printf '%s\n' "${piped}"; }
+  (read -r piped) <<< "$1"
+  { read -r first; } > "$1"
+  printf '%s %s\n' "${first}" "${second}"
+}
