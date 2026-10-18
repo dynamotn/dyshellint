@@ -184,7 +184,10 @@ func checkFindExecEach(f *File, r *Reporter) {
 					break
 				}
 			}
-			if end > 0 && wordLiteral(args[end]) != "+" && braces == 1 && wordLiteral(args[end-1]) == "{}" {
+			// `-exec ... {} +` is always true, so a test or an action after the
+			// `;`, as in `-exec grep -q foo {} \; -print`, would no longer
+			// depend on the command; only the last expression can switch.
+			if end > 0 && end == len(args)-1 && wordLiteral(args[end]) != "+" && braces == 1 && wordLiteral(args[end-1]) == "{}" {
 				r.At(args[end].Pos(), "`-exec ... {} \\;` starts one process per file; end it with `+` to pass many files to one command")
 			}
 		}
