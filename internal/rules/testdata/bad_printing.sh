@@ -10,6 +10,9 @@ set -euo pipefail
 #######################################
 function _show {
   local value="$1"
+  local -a items=("${value}")
+  echo "${#items[@]}"
+  echo "${#value}"
   echo "${value}"
   echo $value
   echo "$(date +%F)"

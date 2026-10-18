@@ -82,7 +82,12 @@ func startsWithExpansion(word *syntax.Word) bool {
 	}
 	switch p := part.(type) {
 	case *syntax.ParamExp:
-		return p.Param == nil || p.Length || !numericSpecials[p.Param.Value]
+		// A length, `${#value}` or `${#items[@]}`, is a count and never
+		// starts with a dash.
+		if p.Length {
+			return false
+		}
+		return p.Param == nil || !numericSpecials[p.Param.Value]
 	case *syntax.CmdSubst:
 		return true
 	}
