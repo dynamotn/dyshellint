@@ -93,17 +93,56 @@ func checkShebang(f *File, r *Reporter) {
 	}
 }
 
-// strictMode matches the option set the guide asks for, in any order.
-var strictMode = regexp.MustCompile(`set\s+-[a-z]*e[a-z]*u[a-z]*\s+-o\s+pipefail|set\s+-euo\s+pipefail`)
+// strictOptions are the options the guide asks for, by their long name.
+var strictOptions = []string{"errexit", "nounset", "pipefail"}
+
+// shortOptions maps the letters of `set` that turn on a strict option to its
+// long name.
+var shortOptions = map[byte]string{'e': "errexit", 'u': "nounset"}
 
 func checkStrictMode(f *File, r *Reporter) {
 	if f.Role != RoleEntrypoint || f.UsesDybatpho {
 		return
 	}
-	if strictMode.Match(f.Src) {
-		return
+	on := map[string]bool{}
+	eachCall(f, func(call *syntax.CallExpr, name string) {
+		if name == "set" {
+			setOptions(call, on)
+		}
+	})
+	for _, option := range strictOptions {
+		if !on[option] {
+			r.AtLine(1, "no `set -euo pipefail`; add it under the shebang, or source dybatpho, which sets it")
+			return
+		}
 	}
-	r.AtLine(1, "no `set -euo pipefail`; add it under the shebang, or source dybatpho, which sets it")
+}
+
+// setOptions adds the long name of every option a `set` call turns on to on.
+// The letters of a cluster come in any order, as in `-Eeuo pipefail`, and each
+// `o` among them takes the next word as the name of an option, the way
+// `-o errexit -o nounset` spells them out.
+func setOptions(call *syntax.CallExpr, on map[string]bool) {
+	args := call.Args[1:]
+	for i := 0; i < len(args); i++ {
+		lit := wordLiteral(args[i])
+		if len(lit) < 2 || lit[0] != '-' || lit == "--" {
+			// The rest are positional parameters.
+			return
+		}
+		for _, letter := range []byte(lit[1:]) {
+			if letter == 'o' {
+				if i+1 < len(args) {
+					i++
+					on[wordLiteral(args[i])] = true
+				}
+				continue
+			}
+			if option := shortOptions[letter]; option != "" {
+				on[option] = true
+			}
+		}
+	}
 }
 
 func checkSourceBuiltin(f *File, r *Reporter) {
