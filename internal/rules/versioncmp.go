@@ -18,8 +18,13 @@ func init() {
 	})
 }
 
-// versionName matches a variable that holds a version.
-var versionName = regexp.MustCompile(`(?i)(^|_)(version|ver|vers)(_|$)|version$`)
+// versionName matches a variable that holds a version, and versionPart one
+// that holds a single number taken from it, such as `version_major`: splitting
+// a version and comparing its parts as numbers is what the guide recommends.
+var (
+	versionName = regexp.MustCompile(`(?i)(^|_)(version|ver|vers)(_|$)|version$`)
+	versionPart = regexp.MustCompile(`(?i)_(major|minor|patch|count)$`)
+)
 
 // dottedVersion matches a literal version such as `1.10` or `2.3.4`.
 var dottedVersion = regexp.MustCompile(`^v?[0-9]+\.[0-9]+`)
@@ -57,8 +62,7 @@ func testsVersion(expr syntax.TestExpr) bool {
 	if dottedVersion.MatchString(wordLiteral(word)) {
 		return true
 	}
-	pe := wordParam(word)
-	return pe != nil && pe.Param != nil && pe.Index == nil && versionName.MatchString(pe.Param.Value)
+	return versionParam(wordParam(word))
 }
 
 // arithVersion reports whether an arithmetic operand is a whole version
@@ -69,8 +73,17 @@ func arithVersion(expr syntax.ArithmExpr) bool {
 		return false
 	}
 	if name := arithmName(word); name != "" {
-		return versionName.MatchString(name)
+		return isVersionName(name)
 	}
-	pe := wordParam(word)
-	return pe != nil && pe.Param != nil && pe.Index == nil && versionName.MatchString(pe.Param.Value)
+	return versionParam(wordParam(word))
+}
+
+// versionParam reports whether an expansion yields a whole version string.
+// An element or a length such as `${#version}` is a plain number.
+func versionParam(pe *syntax.ParamExp) bool {
+	return pe != nil && pe.Param != nil && pe.Index == nil && !pe.Length && isVersionName(pe.Param.Value)
+}
+
+func isVersionName(name string) bool {
+	return versionName.MatchString(name) && !versionPart.MatchString(name)
 }

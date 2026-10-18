@@ -44,6 +44,7 @@ func checkBareEnvironment(f *File, r *Reporter) {
 	}
 	p := f.project()
 	seen := map[string]bool{}
+	guarded := setTestedVars(f)
 	external := externalPrefixes(f, p)
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		pe, ok := node.(*syntax.ParamExp)
@@ -51,7 +52,7 @@ func checkBareEnvironment(f *File, r *Reporter) {
 			return true
 		}
 		name := pe.Param.Value
-		if seen[name] || !upperName.MatchString(name) || shellVariables[name] || strings.HasPrefix(name, "BATS_") || p.Assigned(name) || hasAnyPrefix(name, external) {
+		if seen[name] || guarded[name] || !upperName.MatchString(name) || shellVariables[name] || strings.HasPrefix(name, "BATS_") || p.Assigned(name) || hasAnyPrefix(name, external) {
 			return true
 		}
 		seen[name] = true
@@ -59,6 +60,26 @@ func checkBareEnvironment(f *File, r *Reporter) {
 			name, name, name)
 		return true
 	})
+}
+
+// setTestedVars returns the variables a file tests with `[[ -v NAME ]]`: the
+// test is how a script asks whether the environment holds one, and the read it
+// guards is safe under `set -u`.
+func setTestedVars(f *File) map[string]bool {
+	out := map[string]bool{}
+	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+		test, ok := node.(*syntax.UnaryTest)
+		if !ok || test.Op != syntax.TsVarSet {
+			return true
+		}
+		if word, ok := test.X.(*syntax.Word); ok {
+			// `-v map[key]` tests one element; the name is what is read bare.
+			name, _, _ := strings.Cut(wordLiteral(word), "[")
+			out[name] = true
+		}
+		return true
+	})
+	return out
 }
 
 // externalPrefixes returns the variable prefixes of libraries the file calls

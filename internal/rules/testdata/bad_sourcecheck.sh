@@ -16,3 +16,6 @@ CHECKED_DIR="${LIB_DIR}"
 . "${LIB_DIR}/more.sh" || exit 1
 # shellcheck source=/dev/null
 . "${OWN_DIR}/lib/common.sh"
+ZERO_DIR="$(cd "$(dirname "${0}")" && pwd)"
+# shellcheck source=/dev/null
+. "${ZERO_DIR}/lib/util.sh"

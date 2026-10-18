@@ -14,3 +14,5 @@ source "/tmp/app-${USER}.conf"
 . "${HOME}/lib/helpers.sh"
 # shellcheck source=/dev/null # fixtures stand in for real files
 . /etc/app/app.conf
+# shellcheck source=/dev/null # fixtures stand in for real files
+. "${BASH_SOURCE[0]%/*}/build/tmp/helpers.sh"

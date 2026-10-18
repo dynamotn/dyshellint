@@ -43,9 +43,23 @@ var gnuOnly = map[string][]gnuOption{
 	"cp":       {{long: "--reflink"}},
 }
 
+// valueOptions lists, by command, the short options that take a value. In a
+// cluster such as `date -Iseconds` everything after one of them is its value,
+// not further options.
+var valueOptions = map[string]string{
+	"date":   "dfIrs",
+	"sed":    "efl",
+	"stat":   "ft",
+	"grep":   "ABCDdefm",
+	"xargs":  "adEILnPs",
+	"sort":   "kSoTt",
+	"base64": "w",
+}
+
 // flavourProbe matches what a function does when it tells the platforms apart
-// before choosing an option.
-var flavourProbe = regexp.MustCompile(`--version|(?i:gnu|bsd|busybox|darwin|macos|flavou?r|uname|is_linux|is_macos|goos)`)
+// before choosing an option. `--version` counts only as a word of its own, so
+// that `sort --version-sort` is not taken for a probe.
+var flavourProbe = regexp.MustCompile(`--version([^-\w]|$)|(?i:gnu|bsd|busybox|darwin|macos|flavou?r|uname|is_linux|is_macos|goos)`)
 
 // dybatphoPortable names the dybatpho helper that does the work of a GNU-only
 // option on every platform, by the command that carries the option.
@@ -64,11 +78,8 @@ func checkGnuOnlyFlags(f *File, r *Reporter) {
 	if linuxOnly.Match(f.Src) {
 		return
 	}
-	eachFunc(f, func(decl *syntax.FuncDecl) {
-		if flavourProbe.MatchString(f.Text(decl.Pos(), decl.End())) {
-			return
-		}
-		allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
+	check := func(scope syntax.Node) {
+		allCalls(scope, func(call *syntax.CallExpr, name string) {
 			options, ok := gnuOnly[name]
 			if !ok {
 				return
@@ -78,7 +89,7 @@ func checkGnuOnlyFlags(f *File, r *Reporter) {
 				if lit == "--" {
 					return
 				}
-				if opt, ok := matchGnuOption(lit, options); ok {
+				if opt, ok := matchGnuOption(lit, options, valueOptions[name]); ok {
 					const msg = "`%s %s` exists only in the GNU tools, so the call fails on macOS, the BSDs and BusyBox; use a portable form, or probe for the flavour first"
 					if advice, ok := dybatphoPortable[name]; ok {
 						reportWithDybatpho(f, r, arg.Pos(), advice, msg, name, opt)
@@ -89,21 +100,45 @@ func checkGnuOnlyFlags(f *File, r *Reporter) {
 				}
 			}
 		})
+	}
+	// A function is the scope of a probe. Outside any function, each top-level
+	// statement is, so an `if` that probes covers the calls in its branches.
+	// allCalls stops at a function, which is checked on its own.
+	eachFunc(f, func(decl *syntax.FuncDecl) {
+		if !flavourProbe.MatchString(f.Text(decl.Pos(), decl.End())) {
+			check(decl.Body)
+		}
 	})
+	for _, stmt := range f.Syntax.Stmts {
+		if !flavourProbe.MatchString(f.Text(stmt.Pos(), stmt.End())) {
+			check(stmt)
+		}
+	}
 }
 
-func matchGnuOption(lit string, options []gnuOption) (string, bool) {
+// matchGnuOption returns the GNU-only option an argument passes. A short
+// option is looked for in the cluster up to the first option that takes a
+// value, since the rest of the word is that value.
+func matchGnuOption(lit string, options []gnuOption, takesValue string) (string, bool) {
 	if !strings.HasPrefix(lit, "-") {
 		return "", false
 	}
 	for _, opt := range options {
-		switch {
-		case opt.long != "":
-			if lit == opt.long || strings.HasPrefix(lit, opt.long+"=") {
-				return opt.long, true
+		if opt.long != "" && (lit == opt.long || strings.HasPrefix(lit, opt.long+"=")) {
+			return opt.long, true
+		}
+	}
+	if strings.HasPrefix(lit, "--") {
+		return "", false
+	}
+	for i := 1; i < len(lit); i++ {
+		for _, opt := range options {
+			if opt.short != 0 && lit[i] == opt.short {
+				return "-" + string(opt.short), true
 			}
-		case !strings.HasPrefix(lit, "--") && strings.IndexByte(lit[1:], opt.short) >= 0:
-			return "-" + string(opt.short), true
+		}
+		if strings.IndexByte(takesValue, lit[i]) >= 0 {
+			break
 		}
 	}
 	return "", false

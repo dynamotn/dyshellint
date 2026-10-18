@@ -1,8 +1,6 @@
 package rules
 
 import (
-	"strings"
-
 	"mvdan.cc/sh/v3/syntax"
 
 	"gitlab.com/dynamo-tools/dyshellint/internal/lint"
@@ -95,15 +93,16 @@ func anyVarIn(word *syntax.Word, vars map[string]bool) bool {
 
 // ownDirVars returns the variables a file fills with its own directory, from
 // `BASH_SOURCE` or `$0`: a library found next to the script ships with it.
+// The expansions are found in the tree, so `${0}` counts as much as `$0`.
 func ownDirVars(f *File) map[string]bool {
 	out := map[string]bool{}
+	own := map[string]bool{"BASH_SOURCE": true, "0": true}
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		assign, ok := node.(*syntax.Assign)
 		if !ok || assign.Name == nil || assign.Value == nil {
 			return true
 		}
-		src := wordSource(assign.Value)
-		if strings.Contains(src, "BASH_SOURCE") || strings.Contains(src, "$0") {
+		if anyVarIn(assign.Value, own) {
 			out[assign.Name.Value] = true
 		}
 		return true
