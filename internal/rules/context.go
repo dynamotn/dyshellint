@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"mvdan.cc/sh/v3/syntax"
 
@@ -68,6 +69,9 @@ type File struct {
 	// Project is every file of the run, linked so that a rule can follow a
 	// call into the file that defines it. Nil until Link runs.
 	Project *Project
+	// linkOnce guards the project a file builds for itself when no run linked
+	// it, since the rules of one file may ask for it at the same time.
+	linkOnce sync.Once
 }
 
 // Reporter collects the findings of one rule against one file.

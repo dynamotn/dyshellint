@@ -85,11 +85,14 @@ func Link(files []*File) *Project {
 }
 
 // project returns the project the file belongs to, building one out of the
-// file alone when no run linked it, as for a buffer an editor pipes in.
+// file alone when no run linked it, as for a buffer an editor pipes in. The
+// rules of one file may run at once, so the build happens only once.
 func (f *File) project() *Project {
-	if f.Project == nil {
-		Link([]*File{f})
-	}
+	f.linkOnce.Do(func() {
+		if f.Project == nil {
+			Link([]*File{f})
+		}
+	})
 	return f.Project
 }
 
