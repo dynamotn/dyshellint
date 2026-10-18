@@ -36,7 +36,7 @@ func checkUncheckedSource(f *File, r *Reporter) {
 			return true
 		}
 		path := call.Args[1]
-		if !hasExpansion(path) || statusUsed(stmt, up) || anyVarIn(path, tested) || anyVarIn(path, own) {
+		if !hasExpansion(path) || statusUsed(stmt, up) || anyVarIn(path, tested) || anyVarIn(path, own) || anyVarIn(path, ownDirSources) {
 			return true
 		}
 		r.At(path.Pos(), "%s may not exist, and a failed `.` only prints an error before the script runs on without the library; test it with `[[ -r ... ]]` first, or add `|| exit 1`",
@@ -91,12 +91,16 @@ func anyVarIn(word *syntax.Word, vars map[string]bool) bool {
 	return found
 }
 
+// ownDirSources are the expansions that name the script itself, so a path
+// built straight from one, as `${BASH_SOURCE[0]%/*}/lib.sh`, ships with it.
+var ownDirSources = map[string]bool{"BASH_SOURCE": true, "0": true}
+
 // ownDirVars returns the variables a file fills with its own directory, from
 // `BASH_SOURCE` or `$0`: a library found next to the script ships with it.
 // The expansions are found in the tree, so `${0}` counts as much as `$0`.
 func ownDirVars(f *File) map[string]bool {
 	out := map[string]bool{}
-	own := map[string]bool{"BASH_SOURCE": true, "0": true}
+	own := ownDirSources
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		assign, ok := node.(*syntax.Assign)
 		if !ok || assign.Name == nil || assign.Value == nil {
