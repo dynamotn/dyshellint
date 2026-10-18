@@ -28,13 +28,18 @@ func (r Report) Write(w io.Writer) (failed bool, err error) {
 		}
 	}
 	if r.Format == "json" {
+		findings := r.Findings
+		if findings == nil {
+			// A consumer reads a list, never null, even when nothing is wrong.
+			findings = []Finding{}
+		}
 		encoder := json.NewEncoder(w)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(struct {
 			Findings []Finding `json:"findings"`
 			Errors   int       `json:"errors"`
 			Warnings int       `json:"warnings"`
-		}{r.Findings, errors, warnings}); err != nil {
+		}{findings, errors, warnings}); err != nil {
 			return true, err
 		}
 		return errors > 0 || (r.WarningsAsErrors && warnings > 0), nil

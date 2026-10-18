@@ -1,12 +1,11 @@
 package lint
 
 import (
-	"bufio"
 	"bytes"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // Discover expands the given paths into the list of shell files to check. A
@@ -33,12 +32,21 @@ func Discover(paths []string) ([]string, error) {
 			continue
 		}
 		kept := notIgnored(path)
-		err = filepath.WalkDir(path, func(name string, entry os.DirEntry, err error) error {
+		// WalkDir does not follow a root that is a symlink, so the walk goes
+		// over the target and puts every name back under the one given.
+		root, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return nil, err
+		}
+		err = filepath.WalkDir(root, func(name string, entry os.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
+			if rel, err := filepath.Rel(root, name); err == nil {
+				name = filepath.Join(path, rel)
+			}
 			if entry.IsDir() {
-				if name != path && skipDir(name) {
+				if name != filepath.Clean(path) && skipDir(name) {
 					return filepath.SkipDir
 				}
 				return nil
@@ -46,7 +54,7 @@ func Discover(paths []string) ([]string, error) {
 			if kept != nil && !kept[filepath.Clean(name)] {
 				return nil
 			}
-			if IsShellFile(name) {
+			if isRegular(name, entry) && IsShellFile(name) {
 				add(name)
 			}
 			return nil
@@ -62,7 +70,9 @@ func Discover(paths []string) ([]string, error) {
 // ones, and untracked ones no ignore rule matches. It returns nil outside a
 // repository, or without git, and then nothing is left out.
 func notIgnored(dir string) map[string]bool {
-	out, err := exec.Command("git", "-C", dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	// The repository being linted is not trusted: core.fsmonitor in its
+	// configuration names a program git would run to list the files.
+	out, err := exec.Command("git", "-c", "core.fsmonitor=false", "-C", dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
 	if err != nil {
 		return nil
 	}
@@ -86,6 +96,20 @@ func skipDir(name string) bool {
 	return err == nil
 }
 
+// isRegular reports whether a file found by the walk can be read to its end:
+// a FIFO blocks the open, and a device such as /dev/zero never ends. A symlink
+// counts when its target is a regular file.
+func isRegular(name string, entry os.DirEntry) bool {
+	if entry.Type().IsRegular() {
+		return true
+	}
+	if entry.Type()&os.ModeSymlink == 0 {
+		return false
+	}
+	info, err := os.Stat(name)
+	return err == nil && info.Mode().IsRegular()
+}
+
 // IsShellFile reports whether a file is worth parsing: the extension says so,
 // `.bats` included, or the first line is a bash shebang.
 func IsShellFile(path string) bool {
@@ -101,10 +125,10 @@ func IsShellFile(path string) bool {
 		return false
 	}
 	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	if !scanner.Scan() {
-		return false
-	}
-	line := scanner.Text()
-	return strings.HasPrefix(line, "#!") && strings.Contains(line, "sh")
+	// A shebang is short, and a binary file has no line to speak of: reading
+	// a bounded prefix is enough, and never pulls a large file into memory.
+	head := make([]byte, 256)
+	n, _ := io.ReadFull(file, head)
+	line, _, _ := bytes.Cut(head[:n], []byte{'\n'})
+	return bytes.HasPrefix(line, []byte("#!")) && bytes.Contains(line, []byte("sh"))
 }

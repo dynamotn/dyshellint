@@ -8,11 +8,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"gitlab.com/dynamo-tools/dyshellint/internal/directive"
 	"gitlab.com/dynamo-tools/dyshellint/internal/lint"
@@ -21,10 +24,13 @@ import (
 )
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
-		if errors.Is(err, errFindings) {
-			os.Exit(1)
-		}
+	err := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	switch {
+	case err == nil, errors.Is(err, flag.ErrHelp):
+		// Asking for the usage is not a failure of the linter.
+	case errors.Is(err, errFindings):
+		os.Exit(1)
+	default:
 		fmt.Fprintln(os.Stderr, "dyshellint:", err)
 		os.Exit(2)
 	}
@@ -50,7 +56,7 @@ type options struct {
 	jobs             int
 }
 
-func run(args []string, stdout, stderr *os.File) error {
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	var opts options
 	flags := flag.NewFlagSet("dyshellint", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -82,12 +88,24 @@ func run(args []string, stdout, stderr *os.File) error {
 	if opts.listRules {
 		return listRules(stdout)
 	}
+	if opts.format != "text" && opts.format != "json" {
+		return fmt.Errorf("unknown format %q, want text or json", opts.format)
+	}
 	paths := flags.Args()
 	if len(paths) == 0 {
 		paths = []string{"."}
 	}
+	if len(paths) > 1 && slices.Contains(paths, "-") {
+		return errors.New("`-` reads standard input, and cannot be mixed with paths")
+	}
+	// A mistake on the command line is reported before anything is read, so
+	// it does not hide behind a run that found no file.
+	selected, err := selectRules(opts.only, opts.exclude)
+	if err != nil {
+		return err
+	}
 
-	sources, err := collect(paths, opts, os.Stdin)
+	sources, err := collect(paths, opts, stdin)
 	if err != nil {
 		var pathErr *fs.PathError
 		if errors.As(err, &pathErr) {
@@ -105,7 +123,7 @@ func run(args []string, stdout, stderr *os.File) error {
 		return nil
 	}
 
-	findings, err := checkAll(sources, opts, stderr)
+	findings, err := checkAll(sources, selected, opts, stderr)
 	if err != nil {
 		return err
 	}
@@ -126,7 +144,7 @@ func run(args []string, stdout, stderr *os.File) error {
 // collect turns the command line into the list of sources to check. A single
 // `-` reads the program from standard input, which is how an editor lints a
 // buffer that has not been saved.
-func collect(paths []string, opts options, stdin *os.File) ([]lint.Source, error) {
+func collect(paths []string, opts options, stdin io.Reader) ([]lint.Source, error) {
 	if len(paths) == 1 && paths[0] == "-" {
 		source, err := lint.StdinSource(stdin, opts.stdinFilename)
 		if err != nil {
@@ -149,36 +167,16 @@ func collect(paths []string, opts options, stdin *os.File) ([]lint.Source, error
 	return sources, nil
 }
 
-func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Finding, error) {
-	selected, err := selectRules(opts.only, opts.exclude)
-	if err != nil {
-		return nil, err
+func checkAll(sources []lint.Source, selected []rules.Rule, opts options, stderr io.Writer) ([]lint.Finding, error) {
+	paths := make([]string, len(sources))
+	for i, source := range sources {
+		paths[i] = source.Disk
 	}
-	paths := make([]string, 0, len(sources))
-	// A file that the parser rejects has no directives, so nothing of it is
-	// silenced: the syntax error is the only finding it can carry anyway.
-	directives := make(map[string]*directive.Set, len(sources))
-	var findings []lint.Finding
-	var files []*rules.File
-	for _, source := range sources {
-		paths = append(paths, source.Disk)
-		file, err := rules.NewFile(source.Name, source.Content, source.Executable)
-		if err != nil {
-			// A file the parser rejects is a syntax error, which is a finding of
-			// its own rather than a reason to stop the run.
-			findings = append(findings, parseFinding(source.Name, err))
-			continue
-		}
-		file.ModeKnown = source.ModeKnown
-		directives[source.Name] = directive.Parse(file.Lines, file.Syntax)
-		files = append(files, file)
-	}
-	// Every file is parsed before any rule runs, so that a rule can follow a
-	// call into the file that defines the function.
-	rules.Link(files)
-	for _, file := range files {
-		findings = append(findings, rules.Run(file, selected)...)
-	}
+
+	// ShellCheck and shfmt run in processes of their own, so they start first
+	// and check the files while the rules of the guide do.
+	var tools sync.WaitGroup
+	var shellcheck, shfmt toolRun
 	if !opts.noShellcheck {
 		checker := lint.ShellCheck{Binary: opts.shellcheckBinary, Jobs: opts.jobs}
 		// A buffer read from standard input lives in a temporary directory, so
@@ -187,26 +185,73 @@ func checkAll(sources []lint.Source, opts options, stderr *os.File) ([]lint.Find
 			checker.SourceDir = sources[0].ConfigDir()
 			checker.RCFile = lint.FindRCFile(checker.SourceDir)
 		}
-		external, err := checker.Run(paths)
-		if err != nil {
-			if !errors.Is(err, lint.ErrToolMissing) {
-				return nil, err
-			}
-			fmt.Fprintf(stderr, "dyshellint: skipping shellcheck, %v\n", err)
-		}
-		findings = append(findings, filterExternal(rename(sources, external), opts)...)
+		tools.Go(func() { shellcheck.findings, shellcheck.err = checker.Run(paths) })
 	}
 	if !opts.noShfmt {
-		external, err := lint.Shfmt{Binary: opts.shfmtBinary, Jobs: opts.jobs}.Run(paths)
+		formatter := lint.Shfmt{Binary: opts.shfmtBinary, Jobs: opts.jobs}
+		tools.Go(func() { shfmt.findings, shfmt.err = formatter.Run(paths) })
+	}
+
+	parsed := make([]*rules.File, len(sources))
+	sets := make([]*directive.Set, len(sources))
+	parseErrs := make([]error, len(sources))
+	lint.Parallel(len(sources), opts.jobs, nil, func(i int) {
+		source := sources[i]
+		file, err := rules.NewFile(source.Name, source.Content, source.Executable)
 		if err != nil {
-			if !errors.Is(err, lint.ErrToolMissing) {
-				return nil, err
-			}
-			fmt.Fprintf(stderr, "dyshellint: skipping shfmt, %v\n", err)
+			parseErrs[i] = err
+			return
 		}
-		findings = append(findings, filterExternal(rename(sources, external), opts)...)
+		file.ModeKnown = source.ModeKnown
+		parsed[i] = file
+		sets[i] = directive.Parse(file.Lines, file.Syntax)
+	})
+	// A file that the parser rejects has no directives, so nothing of it is
+	// silenced: the syntax error is the only finding it can carry anyway.
+	directives := make(map[string]*directive.Set, len(sources))
+	var findings []lint.Finding
+	var files []*rules.File
+	for i, source := range sources {
+		if parseErrs[i] != nil {
+			// A file the parser rejects is a syntax error, which is a finding
+			// of its own rather than a reason to stop the run.
+			findings = append(findings, parseFinding(source.Name, parseErrs[i]))
+			continue
+		}
+		directives[source.Name] = sets[i]
+		files = append(files, parsed[i])
+	}
+	// Every file is parsed before any rule runs, so that a rule can follow a
+	// call into the file that defines the function.
+	rules.Link(files)
+	found := make([][]lint.Finding, len(files))
+	lint.Parallel(len(files), opts.jobs, nil, func(i int) {
+		found[i] = rules.Run(files[i], selected)
+	})
+	for _, list := range found {
+		findings = append(findings, list...)
+	}
+
+	tools.Wait()
+	for _, tool := range []struct {
+		name string
+		run  toolRun
+	}{{"shellcheck", shellcheck}, {"shfmt", shfmt}} {
+		if tool.run.err != nil {
+			if !errors.Is(tool.run.err, lint.ErrToolMissing) {
+				return nil, tool.run.err
+			}
+			fmt.Fprintf(stderr, "dyshellint: skipping %s, %v\n", tool.name, tool.run.err)
+		}
+		findings = append(findings, filterExternal(rename(sources, tool.run.findings), opts)...)
 	}
 	return suppress(lint.DropShadowed(findings), directives), nil
+}
+
+// toolRun is what one external tool returned.
+type toolRun struct {
+	findings []lint.Finding
+	err      error
 }
 
 // suppress drops the findings a `# dyshellint disable=` comment silences. It
@@ -312,7 +357,7 @@ func onlyErrors(findings []lint.Finding) []lint.Finding {
 	return out
 }
 
-func listRules(stdout *os.File) error {
+func listRules(stdout io.Writer) error {
 	all := rules.All()
 	sort.SliceStable(all, func(i, j int) bool { return all[i].Code < all[j].Code })
 	for _, rule := range all {

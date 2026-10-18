@@ -52,7 +52,7 @@ func (s Shfmt) Run(files []string) ([]Finding, error) {
 		return nil, fmt.Errorf("%w: %s", ErrToolMissing, binary)
 	}
 	return eachFile(files, s.Jobs, func(file string) ([]Finding, error) {
-		cmd := exec.Command(binary, slices.Concat(shfmtDialect(file), shfmtOptions, []string{file})...)
+		cmd := exec.Command(binary, slices.Concat(shfmtDialect(file), shfmtOptions, []string{"--", file})...)
 		cmd.Env = plainEnv()
 		out, err := cmd.Output()
 		var exitErr *exec.ExitError

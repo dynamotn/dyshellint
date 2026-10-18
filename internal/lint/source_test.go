@@ -69,3 +69,19 @@ func TestFindRCFileWalksUp(t *testing.T) {
 		t.Errorf("a tree without a configuration returned %q", got)
 	}
 }
+
+func TestStdinSourceKeepsTheCopyInItsDirectory(t *testing.T) {
+	for _, name := range []string{"..", ".", "/", "dir/"} {
+		source, err := StdinSource(strings.NewReader("echo hi\n"), name)
+		if err != nil {
+			t.Fatalf("StdinSource(%q): %v", name, err)
+		}
+		if base := filepath.Base(source.Disk); base == ".." || base == "." || base == string(filepath.Separator) {
+			t.Errorf("StdinSource(%q) wrote to %q", name, source.Disk)
+		}
+		if _, err := os.Stat(source.Disk); err != nil {
+			t.Errorf("StdinSource(%q): the copy is missing: %v", name, err)
+		}
+		source.Close()
+	}
+}

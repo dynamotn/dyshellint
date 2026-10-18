@@ -26,8 +26,11 @@ type Project struct {
 	writers map[string]map[int]bool
 	// assigned holds every variable name any file of the run sets.
 	assigned map[string]bool
-	// files are the files of the run.
-	files []*File
+	// maps holds every name any file of the run declares with `-A`, and every
+	// nameref.
+	maps map[string]bool
+	// gitEnvCleared reports whether any file of the run unsets `GIT_DIR`.
+	gitEnvCleared bool
 }
 
 // dieSinks are the commands that end the shell they run in.
@@ -58,7 +61,7 @@ func Link(files []*File) *Project {
 		runners:  map[string]bool{},
 		writers:  map[string]map[int]bool{},
 		assigned: map[string]bool{},
-		files:    files,
+		maps:     map[string]bool{},
 	}
 	for _, f := range files {
 		eachFunc(f, func(decl *syntax.FuncDecl) {
@@ -66,8 +69,14 @@ func Link(files []*File) *Project {
 		})
 	}
 	p.spread()
+	// What a rule reads of every file is gathered here, once for the run,
+	// rather than by each file again.
 	for _, f := range files {
 		collectAssigned(f.Syntax, p.assigned)
+		collectMaps(f.Syntax, p.maps)
+		if !p.gitEnvCleared && gitEnvCleared.Match(f.Src) {
+			p.gitEnvCleared = true
+		}
 	}
 	for _, f := range files {
 		f.Project = p
@@ -491,9 +500,6 @@ func isPublicFunc(decl *syntax.FuncDecl) bool {
 
 // Assigned reports whether any file of the run sets the variable.
 func (p *Project) Assigned(name string) bool { return p.assigned[name] }
-
-// Files returns the files of the run.
-func (p *Project) Files() []*File { return p.files }
 
 // collectAssigned adds every variable a program sets to out: assignments,
 // declarations, loop variables, the targets of `read`, `mapfile`, `printf -v`

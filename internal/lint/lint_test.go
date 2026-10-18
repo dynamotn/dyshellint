@@ -172,3 +172,36 @@ func TestDropShadowed(t *testing.T) {
 		}
 	}
 }
+
+func TestReportPrintsAnEmptyListAsJSON(t *testing.T) {
+	var out bytes.Buffer
+	if _, err := (Report{Format: "json"}).Write(&out); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if !strings.Contains(out.String(), `"findings": []`) {
+		t.Errorf("an empty report should hold an empty list, got:\n%s", out.String())
+	}
+}
+
+// A file whose name starts with a dash must reach the tool as a file, not as an
+// option: it ended the whole run, and could switch on an option of the tool.
+func TestExternalToolsTakeADashedNameAsAFile(t *testing.T) {
+	dir := t.TempDir()
+	untidy := "if true; then\necho $x\nfi\n"
+	if err := os.WriteFile(filepath.Join(dir, "--version.sh"), []byte(untidy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	if _, err := exec.LookPath("shfmt"); err == nil {
+		findings, err := Shfmt{}.Run([]string{"--version.sh"})
+		if err != nil || len(findings) != 1 {
+			t.Errorf("shfmt: got %v, %v, want one finding", findings, err)
+		}
+	}
+	if _, err := exec.LookPath("shellcheck"); err == nil {
+		findings, err := ShellCheck{}.Run([]string{"--version.sh"})
+		if err != nil || len(findings) == 0 {
+			t.Errorf("shellcheck: got %v, %v, want findings", findings, err)
+		}
+	}
+}

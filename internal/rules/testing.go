@@ -119,12 +119,7 @@ func checkTestIsolation(f *File, r *Reporter) {
 	if !f.Bats {
 		return
 	}
-	cleared := false
-	for _, other := range f.project().Files() {
-		if gitEnvCleared.Match(other.Src) {
-			cleared = true
-		}
-	}
+	cleared := f.project().gitEnvCleared
 	gitReported := false
 	eachCall(f, func(call *syntax.CallExpr, _ string) {
 		for i, arg := range call.Args {

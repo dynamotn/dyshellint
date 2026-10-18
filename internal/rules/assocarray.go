@@ -29,10 +29,7 @@ var arithKey = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 // key as arithmetic, so every string key lands on index 0. A bare word such as
 // `name[key]` is left alone: it is a valid arithmetic index too.
 func checkUndeclaredMap(f *File, r *Reporter) {
-	maps := map[string]bool{}
-	for _, file := range f.project().Files() {
-		collectMaps(file.Syntax, maps)
-	}
+	maps := f.project().maps
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		assign, ok := node.(*syntax.Assign)
 		if !ok || assign.Name == nil || assign.Index == nil || maps[assign.Name.Value] {

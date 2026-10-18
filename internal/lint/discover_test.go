@@ -54,3 +54,49 @@ func TestDiscoverLeavesOutWhatGitIgnores(t *testing.T) {
 		t.Errorf("got %v, want %v", files, []string{bundle})
 	}
 }
+
+func TestDiscoverWalksASymlinkedDirectory(t *testing.T) {
+	real := t.TempDir()
+	if err := os.WriteFile(filepath.Join(real, "lib.sh"), []byte("#!/usr/bin/env bash\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlink: %v", err)
+	}
+	// The files keep the name the caller gave, not the target of the link.
+	files, err := Discover([]string{link})
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	want := []string{filepath.Join(link, "lib.sh")}
+	if !slices.Equal(files, want) {
+		t.Errorf("got %v, want %v", files, want)
+	}
+}
+
+func TestDiscoverSkipsWhatIsNotARegularFile(t *testing.T) {
+	if _, err := exec.LookPath("mkfifo"); err != nil {
+		t.Skip("mkfifo is not installed")
+	}
+	dir := t.TempDir()
+	// Opening a pipe nobody writes to blocks for good, which hung the walk on
+	// a FIFO without an extension, and reading a device never ends.
+	if out, err := exec.Command("mkfifo", filepath.Join(dir, "pipe"), filepath.Join(dir, "pipe.sh")).CombinedOutput(); err != nil {
+		t.Skipf("mkfifo: %v: %s", err, out)
+	}
+	if err := os.Symlink(os.DevNull, filepath.Join(dir, "null.sh")); err != nil {
+		t.Skipf("symlink: %v", err)
+	}
+	script := filepath.Join(dir, "run.sh")
+	if err := os.WriteFile(script, []byte("#!/usr/bin/env bash\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	files, err := Discover([]string{dir})
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if !slices.Equal(files, []string{script}) {
+		t.Errorf("got %v, want %v", files, []string{script})
+	}
+}

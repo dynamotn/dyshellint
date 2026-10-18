@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A run takes about half the time it did on a large repository: files are
+  parsed and checked by the rules of the guide on every CPU, while ShellCheck
+  and shfmt already run beside them, and `BSG103` and the `.bats` isolation
+  check no longer read every file of the run again for each file.
+
+### Fixed
+
+- A directory given through a symlink is walked; it used to report
+  `no shell files found`.
+- A named pipe or a device in the tree no longer hangs the walk: only regular
+  files, or symlinks to one, are read.
+- A file whose name starts with a dash, such as `--version.sh`, is handed to
+  ShellCheck and shfmt as a file; it used to end the whole run, or switch on an
+  option of the tool.
+- Listing the files git ignores no longer runs the `core.fsmonitor` program a
+  repository being checked configures.
+- `-h` and `--help` exit with status `0`.
+- An unknown `--format`, an unknown code in `--rules`, and `-` mixed with paths
+  are reported as a usage error with status `2`, even when no shell file is
+  found.
+- `--format json` prints `"findings": []` rather than `null` for a clean run.
+- `--stdin-filename` with a name such as `..` keeps the temporary copy inside
+  its own directory.
+
 ## [1.0.1]
 
 ### Fixed

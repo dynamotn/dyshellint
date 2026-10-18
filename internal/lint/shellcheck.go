@@ -61,7 +61,9 @@ func (s ShellCheck) Run(files []string) ([]Finding, error) {
 		args = append(args, "--source-path="+s.SourceDir)
 	}
 	return eachFile(files, s.Jobs, func(file string) ([]Finding, error) {
-		return runShellCheck(binary, slices.Concat(args, []string{file}))
+		// `--` keeps a file named like an option, such as `--rcfile=x.sh`,
+		// from being read as one.
+		return runShellCheck(binary, slices.Concat(args, []string{"--", file}))
 	})
 }
 

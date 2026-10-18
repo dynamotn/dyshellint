@@ -69,7 +69,13 @@ func StdinSource(r io.Reader, name string) (Source, error) {
 	// The copy keeps the base name, because ShellCheck resolves a `source=`
 	// directive relative to the file that carries it, and shfmt picks its
 	// dialect from the extension.
-	disk := filepath.Join(dir, filepath.Base(name))
+	base := filepath.Base(name)
+	if base == "." || base == ".." || base == string(filepath.Separator) {
+		// A name that is no file at all would put the copy outside the
+		// temporary directory, or on the directory itself.
+		base = "stdin.sh"
+	}
+	disk := filepath.Join(dir, base)
 	if err := os.WriteFile(disk, content, 0o600); err != nil {
 		os.RemoveAll(dir)
 		return Source{}, fmt.Errorf("write %s: %w", disk, err)
