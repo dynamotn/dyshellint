@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--list-rules --format json` prints the rules as a JSON array of `code`,
+  `severity`, `doc` and `section`, so a script can check that a document,
+  such as the style guide, lists every rule under the section it names.
+
 ### Changed
 
 - A run takes about half the time it did on a large repository: files are

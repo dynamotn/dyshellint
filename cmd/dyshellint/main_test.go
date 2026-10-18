@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gitlab.com/dynamo-tools/dyshellint/internal/rules"
 )
 
 // offline keeps the external tools out of a test, so that it reads only what
@@ -74,5 +77,44 @@ func TestUnknownRuleIsRejected(t *testing.T) {
 	_, _, err := runWith(t, "", append(offline, "--rules", "BSG999", ".")...)
 	if err == nil || !strings.Contains(err.Error(), "BSG999") {
 		t.Errorf("got %v, want an unknown rule error", err)
+	}
+}
+
+func TestListRulesRejectsUnknownFormat(t *testing.T) {
+	_, _, err := runWith(t, "", "--list-rules", "--format", "sarif")
+	if err == nil || !strings.Contains(err.Error(), "sarif") {
+		t.Errorf("got %v, want an unknown format error", err)
+	}
+}
+
+func TestListRulesJSON(t *testing.T) {
+	var out bytes.Buffer
+	if err := listRules(&out, "json"); err != nil {
+		t.Fatal(err)
+	}
+	var listed []listedRule
+	if err := json.Unmarshal(out.Bytes(), &listed); err != nil {
+		t.Fatalf("not json: %v\n%s", err, out.String())
+	}
+	if len(listed) != len(rules.All()) {
+		t.Fatalf("listed %d rules, registry has %d", len(listed), len(rules.All()))
+	}
+	for i, rule := range listed {
+		if i > 0 && rule.Code <= listed[i-1].Code {
+			t.Errorf("%s is listed after %s", rule.Code, listed[i-1].Code)
+		}
+		if rule.Section == "" || rule.Doc == "" || (rule.Severity != "error" && rule.Severity != "warning") {
+			t.Errorf("%s is incomplete: %+v", rule.Code, rule)
+		}
+	}
+}
+
+func TestListRulesText(t *testing.T) {
+	var out bytes.Buffer
+	if err := listRules(&out, "text"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(out.String(), "BSG001  error") {
+		t.Fatalf("unexpected first line: %q", strings.SplitN(out.String(), "\n", 2)[0])
 	}
 }

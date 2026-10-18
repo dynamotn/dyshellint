@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -85,11 +86,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		_, err := fmt.Fprintln(stdout, version.GetBuildInfo())
 		return err
 	}
-	if opts.listRules {
-		return listRules(stdout)
-	}
 	if opts.format != "text" && opts.format != "json" {
 		return fmt.Errorf("unknown format %q, want text or json", opts.format)
+	}
+	if opts.listRules {
+		return listRules(stdout, opts.format)
 	}
 	paths := flags.Args()
 	if len(paths) == 0 {
@@ -357,9 +358,27 @@ func onlyErrors(findings []lint.Finding) []lint.Finding {
 	return out
 }
 
-func listRules(stdout io.Writer) error {
+// listedRule is one rule as `--list-rules --format json` prints it, so that a
+// script can hold a document to the rules the linter has.
+type listedRule struct {
+	Code     string `json:"code"`
+	Severity string `json:"severity"`
+	Doc      string `json:"doc"`
+	Section  string `json:"section"`
+}
+
+func listRules(stdout io.Writer, format string) error {
 	all := rules.All()
 	sort.SliceStable(all, func(i, j int) bool { return all[i].Code < all[j].Code })
+	if format == "json" {
+		listed := make([]listedRule, 0, len(all))
+		for _, rule := range all {
+			listed = append(listed, listedRule{rule.Code, rule.Severity.String(), rule.Doc, rule.Section})
+		}
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(listed)
+	}
 	for _, rule := range all {
 		if _, err := fmt.Fprintf(stdout, "%s  %-7s  %s\n           %s\n", rule.Code, rule.Severity, rule.Doc, rule.Section); err != nil {
 			return err

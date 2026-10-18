@@ -38,6 +38,9 @@ dyshellint --format json ./scripts
 
 # Every rule, with the heading of the guide it comes from
 dyshellint --list-rules
+
+# The same list as JSON, for a script that holds a document to the rules
+dyshellint --list-rules --format json
 ```
 
 | Option | Meaning |
@@ -51,7 +54,7 @@ dyshellint --list-rules
 | `--shellcheck`, `--shfmt` | Point at another binary |
 | `--jobs N` | Files ShellCheck and shfmt check at once, one per CPU by default |
 | `--stdin-filename NAME` | Name to report `-` under |
-| `--list-rules` | Print every rule and exit |
+| `--list-rules` | Print every rule and exit, as JSON with `--format json` |
 
 Exit status is `0` when nothing failed, `1` when the code has findings, and `2`
 when the linter itself could not run. A CI job can tell the two apart.
