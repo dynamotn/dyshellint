@@ -4,6 +4,13 @@
 # @description An empty variable turns `rm -rf "${dir}/"` into `rm -rf /`.
 set -euo pipefail
 
+BUILD_DIR="${BUILD_DIR:-}"
+rm -rf "${BUILD_DIR}/out"
+rm -rf "${dir:-build}"
+rm -rf "${dir:=build}"
+rm -rf "${dir-build}"
+rm -rf "${dir:-}"
+
 #######################################
 # @description Clean a build directory, every way
 # @arg $1 string Build directory
