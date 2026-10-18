@@ -103,6 +103,23 @@ func hasCmdSubst(word *syntax.Word) bool {
 	return found
 }
 
+// assignsCmdSubst reports whether an assignment runs a command for its value,
+// either as a scalar or as an element of an array such as `files=($(ls))`.
+func assignsCmdSubst(assign *syntax.Assign) bool {
+	if hasCmdSubst(assign.Value) {
+		return true
+	}
+	if assign.Array == nil {
+		return false
+	}
+	for _, elem := range assign.Array.Elems {
+		if hasCmdSubst(elem.Value) {
+			return true
+		}
+	}
+	return false
+}
+
 func checkDeclareAndAssign(f *File, r *Reporter) {
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		decl, ok := node.(*syntax.DeclClause)
@@ -119,7 +136,7 @@ func checkDeclareAndAssign(f *File, r *Reporter) {
 			return true
 		}
 		for _, arg := range decl.Args {
-			if arg.Name == nil || !hasCmdSubst(arg.Value) {
+			if arg.Name == nil || !assignsCmdSubst(arg) {
 				continue
 			}
 			name := arg.Name.Value

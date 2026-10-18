@@ -41,5 +41,7 @@ function _outer {
   function _inner {
     nested="x"
   }
+  local -a files=($(printf '%s\n' a b))
   _inner
+  printf '%s\n' "${files[@]}"
 }
