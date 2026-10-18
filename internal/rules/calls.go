@@ -234,6 +234,7 @@ func checkFlagAsCommand(f *File, r *Reporter) {
 // checkSplitRedirect reports `> file 2>&1`, which `&>` says in one operator,
 // and `2>&1 > file`, which still sends errors to the terminal.
 func checkSplitRedirect(f *File, r *Reporter) {
+	up := parents(f.Syntax)
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
 		if !ok {
@@ -247,13 +248,35 @@ func checkSplitRedirect(f *File, r *Reporter) {
 			case redir.Op == syntax.DplOut && redir.N != nil && redir.N.Value == "2" && wordLiteral(redir.Word) == "1":
 				if toFile >= 0 {
 					r.At(stmt.Redirs[toFile].OpPos, "`> file 2>&1` sends both streams to the file; write `&>` (or `&>>` to append), which cannot be put in the wrong order")
-				} else if i+1 < len(stmt.Redirs) && stmt.Redirs[i+1].Op == syntax.RdrOut || i+1 < len(stmt.Redirs) && stmt.Redirs[i+1].Op == syntax.AppOut {
+				} else if (i+1 < len(stmt.Redirs) && stmt.Redirs[i+1].Op == syntax.RdrOut || i+1 < len(stmt.Redirs) && stmt.Redirs[i+1].Op == syntax.AppOut) &&
+					!stdoutCaptured(stmt, up) {
 					r.At(redir.OpPos, "`2>&1 > file` copies standard error to the terminal before standard output moves, so errors still reach the screen; write `&> file`")
 				}
 			}
 		}
 		return true
 	})
+}
+
+// stdoutCaptured reports whether the standard output a statement starts with
+// goes to a command substitution or into a pipe. There `2>&1 > /dev/null` is
+// the idiom that captures standard error alone, as in
+// `err="$(cmd 2>&1 > /dev/null)"`, and nothing reaches the screen.
+func stdoutCaptured(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
+	var child syntax.Node = stmt
+	for node := up[stmt]; node != nil; child, node = node, up[node] {
+		switch n := node.(type) {
+		case *syntax.CmdSubst, *syntax.ProcSubst:
+			return true
+		case *syntax.BinaryCmd:
+			if (n.Op == syntax.Pipe || n.Op == syntax.PipeAll) && child == n.X {
+				return true
+			}
+		case *syntax.FuncDecl:
+			return false
+		}
+	}
+	return false
 }
 
 // leadingParts returns the parts a word starts with, looking inside the double
