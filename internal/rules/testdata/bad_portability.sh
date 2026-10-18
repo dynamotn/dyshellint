@@ -18,6 +18,15 @@ function _inspect {
   sort -rV "${file}"
   sed -n 's/a/b/p' "${file}"
   grep -o 'x' "${file}"
+  date -Iseconds
+}
+
+#######################################
+# @description Sort versions, GNU only
+# @arg $1 string File to sort
+#######################################
+function _sort_versions {
+  sort --version-sort "$1"
 }
 
 #######################################
@@ -41,3 +50,5 @@ function _flavoured_size {
   local file="$1" gnu_format="%s"
   stat -L -c "${gnu_format}" "${file}" 2> /dev/null || stat -L -f %z "${file}"
 }
+
+sed -i 's/a/b/' settings.txt
