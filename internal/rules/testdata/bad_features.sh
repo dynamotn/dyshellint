@@ -27,6 +27,17 @@ function _walk {
   if [[ $? -ne 0 ]]; then
     printf 'no match\n'
   fi
+  grep -q pattern "${root}/file" || [[ $? -eq 1 ]]
+  grep -q pattern "${root}/file"
+  if (( $? != 0 )); then
+    printf 'no match\n'
+  fi
+  grep -q pattern "${root}/file"
+  if [ $? -ne 0 ]; then
+    printf 'no match\n'
+  fi
+  grep -q pattern "${root}/file"
+  test $? -ne 0 && printf 'no match\n'
 
   printf 'data\n' > "/tmp/walk.$$"
 }
