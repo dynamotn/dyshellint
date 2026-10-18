@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and shfmt already run beside them, and `BSG103` and the `.bats` isolation
   check no longer read every file of the run again for each file.
 
+### Security
+
+- Release binaries are built with Go 1.26.9, which fixes the standard library
+  advisories reported against 1.26.5.
+
 ### Fixed
 
 - A directory given through a symlink is walked; it used to report

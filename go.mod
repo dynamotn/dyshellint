@@ -2,4 +2,6 @@ module gitlab.com/dynamo-tools/dyshellint
 
 go 1.26.5
 
+toolchain go1.26.9
+
 require mvdan.cc/sh/v3 v3.14.1
