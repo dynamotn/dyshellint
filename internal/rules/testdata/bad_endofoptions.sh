@@ -21,4 +21,7 @@ function _handle {
   mkdir -m 700 -- "${path}"
   grep --ignore-case "${pattern}" "${path}"
   grep -ie "${pattern}" -- "${path}"
+  dirname "${path}"
+  basename -s .sh "${path}"
+  dirname -- "${path}"
 }

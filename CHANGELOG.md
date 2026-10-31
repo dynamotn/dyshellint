@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without re-raising the signal or exiting, and suggests re-raising it with
   `trap - INT; kill -s INT "${BASHPID}"`.
 
+- `BSG057` also checks the operand of `dirname` and `basename`.
+
 ## [1.1.0]
 
 ### Added

@@ -25,6 +25,7 @@ func init() {
 var optionTakers = map[string]string{
 	"rm": "", "mv": "tS", "cp": "tS", "ln": "tS", "touch": "dtr", "mkdir": "m",
 	"cat": "", "ls": "IwT", "chmod": "", "chown": "", "grep": "efmABCd", "sed": "efl",
+	"dirname": "", "basename": "s",
 }
 
 // skipsFirst are the commands whose first operand is not a path: a mode or an
