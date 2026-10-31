@@ -24,4 +24,6 @@ function _handle {
   dirname "${path}"
   basename -s .sh "${path}"
   dirname -- "${path}"
+  rm -f ./scratch "${path}"
+  rm -f -- ./scratch "${path}"
 }

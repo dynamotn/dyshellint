@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   function, or one whose function is called with arguments,
   `trap 'cleanup "${dir}"' INT`.
 
+- `BSG057` checks every operand, not only the first: GNU tools take an option
+  from anywhere on the line, so `rm -f ./a "${b}"` is unsafe too. Its
+  suggestion no longer drops the options and other operands of the call.
+
 - `BSG057` also checks the operand of `dirname` and `basename`.
 
 ## [1.1.0]
