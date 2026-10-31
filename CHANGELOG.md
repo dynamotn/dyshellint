@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `BSG087` no longer takes the fields of `read -r x y <<< "${rect}"` in a
+  private library helper for input: they split a value its caller handed
+  over, which is checked where it came from.
+
 - `BSG106` no longer warns about a handler that exits through a helper
   function, or one whose function is called with arguments,
   `trap 'cleanup "${dir}"' INT`.

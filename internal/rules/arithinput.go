@@ -35,8 +35,19 @@ func checkUncheckedArithmetic(f *File, r *Reporter) {
 				inputs[name] = true
 			}
 		}
+		// There, `read -r x y <<< "${rect}"` only splits a value the caller
+		// handed over; it reads nothing from outside.
+		unpacks := map[*syntax.CallExpr]bool{}
+		if !fromCaller {
+			syntax.Walk(decl.Body, func(node syntax.Node) bool {
+				if stmt, ok := node.(*syntax.Stmt); ok && readsHereVariable(stmt) {
+					unpacks[stmt.Cmd.(*syntax.CallExpr)] = true
+				}
+				return true
+			})
+		}
 		allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
-			if name == "read" {
+			if name == "read" && !unpacks[call] {
 				builtinTargets(call, func(target string, _ syntax.Pos) { inputs[target] = true })
 			}
 		})
@@ -121,4 +132,34 @@ func validatedNames(decl *syntax.FuncDecl) map[string]bool {
 		return true
 	})
 	return out
+}
+
+// readsHereVariable reports whether a statement is a `read` fed by a here
+// string that is nothing but variable expansions, `read -r a b <<< "${rect}"`.
+func readsHereVariable(stmt *syntax.Stmt) bool {
+	call, ok := stmt.Cmd.(*syntax.CallExpr)
+	if !ok || callName(call) != "read" {
+		return false
+	}
+	for _, redir := range stmt.Redirs {
+		if redir.Op != syntax.WordHdoc || redir.Word == nil {
+			continue
+		}
+		parts := redir.Word.Parts
+		if len(parts) == 1 {
+			if dq, ok := parts[0].(*syntax.DblQuoted); ok {
+				parts = dq.Parts
+			}
+		}
+		if len(parts) == 0 {
+			return false
+		}
+		for _, part := range parts {
+			if pe, ok := part.(*syntax.ParamExp); !ok || pe.Exp != nil || pe.Repl != nil || pe.Slice != nil {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
