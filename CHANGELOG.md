@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `BSG129` warns about a variable checked only for digits, with
+  `[[ $n =~ ^[0-9]+$ ]]` or `case $n in *[!0-9]*)`, and then used bare in
+  `(( ))` or `$(( ))`. The check lets `08` and `010` through, and arithmetic
+  reads them as octal: `08` stops the script and `010` is eight. A use written
+  `10#${n}`, a variable normalised with `n=$((10#${n}))`, or one handed by name
+  to a helper after the check is left alone.
+
 ## [1.1.0]
 
 ### Added
