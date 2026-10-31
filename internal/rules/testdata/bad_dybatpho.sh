@@ -33,6 +33,14 @@ function _users {
   awk -F: '{ print $1 }' /etc/passwd
 }
 
+#######################################
+# @description Greet a name its caller already checked
+# @arg $1 string Name
+#######################################
+function __greet {
+  printf 'hi %s\n' "$1"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --name) shift ;;

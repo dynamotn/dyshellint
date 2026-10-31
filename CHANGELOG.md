@@ -58,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   script when the assignment fails. `local value="$(fn)"` and a substitution
   used as an argument are still reported.
 
+- `BSG050` lets a private helper, named `__name`, read its arguments by
+  position.
+
 - ShellCheck's `SC2154` and `SC2153` are no longer reported for a variable
   that a file of the run sets where ShellCheck cannot see it: a dybatpho
   option spec such as `dybatpho::opts::flag "Quiet" QUIET`, or a file the

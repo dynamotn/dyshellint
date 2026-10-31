@@ -51,6 +51,11 @@ func checkExpectArgs(f *File, r *Reporter) {
 		return
 	}
 	eachFunc(f, func(decl *syntax.FuncDecl) {
+		// A private helper, `__name`, may read what its caller passes it by
+		// position.
+		if isPrivateName(decl.Name.Value) {
+			return
+		}
 		body := f.Text(decl.Body.Pos(), decl.Body.End())
 		if strings.Contains(body, "expect_args") || !readsPositionalDigit(decl) {
 			return
