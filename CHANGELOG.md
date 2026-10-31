@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   evaluates the subscript a second time, so a key holding `$(cmd)` runs it.
   A single-quoted subscript, `unset -v 'map[$key]'`, is left alone.
 
+- `BSG131` warns about an unquoted expansion or `&` in the replacement of
+  `${var//pattern/replacement}`. Bash 5.2 turned on `patsub_replacement`, under
+  which such an `&` is the matched text, even inside double quotes: a mask such
+  as `<&>` put the secret back.
+
 ## [1.1.0]
 
 ### Added
