@@ -58,6 +58,14 @@ func checkOctalAfterDigitCheck(f *File, r *Reporter) {
 				if n.Name != nil && n.Value != nil && strings.Contains(wordSource(n.Value), "10#") {
 					normalised[n.Name.Value] = true
 				}
+			case *syntax.BinaryArithm:
+				// So does `((n = 10#${n}))`.
+				word, ok := n.X.(*syntax.Word)
+				if ok && n.Op == syntax.Assgn && strings.Contains(f.Text(n.Y.Pos(), n.Y.End()), "10#") {
+					if name := arithmOperand(word); name != "" {
+						normalised[name] = true
+					}
+				}
 			case *syntax.CallExpr:
 				// A helper handed the name after the check, `decimal_into n`,
 				// may rewrite it through a nameref.
@@ -90,16 +98,25 @@ func checkOctalAfterDigitCheck(f *File, r *Reporter) {
 			default:
 				return
 			}
+			// The target of `n = ...` is written, not read.
+			targets := map[*syntax.Word]bool{}
 			syntax.Walk(expr, func(inner syntax.Node) bool {
+				if bin, ok := inner.(*syntax.BinaryArithm); ok && bin.Op == syntax.Assgn {
+					if word, ok := bin.X.(*syntax.Word); ok {
+						targets[word] = true
+					}
+				}
 				word, ok := inner.(*syntax.Word)
 				if !ok {
 					return true
 				}
-				if strings.HasPrefix(wordSource(word), "10#") {
+				if targets[word] || strings.HasPrefix(wordSource(word), "10#") {
 					return false
 				}
 				name := arithmOperand(word)
-				if _, ok := checked[name]; name == "" || !ok || normalised[name] || reported[name] {
+				// A use before the check reads a value the check has not seen.
+				at, ok := checked[name]
+				if name == "" || !ok || word.Pos().Offset() < at || normalised[name] || reported[name] {
 					return false
 				}
 				reported[name] = true

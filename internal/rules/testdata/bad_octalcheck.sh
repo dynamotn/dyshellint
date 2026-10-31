@@ -65,3 +65,15 @@ function _read_counts {
   _decimal_into count
   ((count > 0 && total > 0)) || return 1
 }
+
+#######################################
+# @description Step a counter used before its check, then normalised in place
+# @arg $1 number Start of the count
+#######################################
+function _step {
+  local step="$1"
+  printf '%s\n' "$((step + 1))"
+  [[ "${step}" =~ ^[0-9]{1,18}$ ]] || return 1
+  ((step = 10#${step}))
+  ((step > 0)) || return 1
+}

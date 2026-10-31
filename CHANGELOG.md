@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[[ $n =~ ^[0-9]+$ ]]` or `case $n in *[!0-9]*)`, and then used bare in
   `(( ))` or `$(( ))`. The check lets `08` and `010` through, and arithmetic
   reads them as octal: `08` stops the script and `010` is eight. A use written
-  `10#${n}`, a variable normalised with `n=$((10#${n}))`, or one handed by name
-  to a helper after the check is left alone.
+  `10#${n}`, a use before the check, a variable normalised with
+  `n=$((10#${n}))` or `((n = 10#${n}))`, or one handed by name to a helper
+  after the check is left alone.
 
 - `BSG130` warns about `unset "map[${key}]"` and `unset arr[$i]`: `unset`
   evaluates the subscript a second time, so a key holding `$(cmd)` runs it.
