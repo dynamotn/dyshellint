@@ -53,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG057` also checks the operand of `dirname` and `basename`.
 
+- `BSG047` takes a plain assignment, `value="$(fn)"`, in an entrypoint that
+  loads dybatpho as checked: the strict mode dybatpho turns on stops the
+  script when the assignment fails. `local value="$(fn)"` and a substitution
+  used as an argument are still reported.
+
 - ShellCheck's `SC2154` and `SC2153` are no longer reported for a variable
   that a file of the run sets where ShellCheck cannot see it: a dybatpho
   option spec such as `dybatpho::opts::flag "Quiet" QUIET`, or a file the

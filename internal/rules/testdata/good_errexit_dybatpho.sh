@@ -17,13 +17,27 @@ function _version {
 }
 
 #######################################
+# @description Read the version, or stop the script when there is none
+# @noargs
+# @stdout Version
+#######################################
+function _required_version {
+  local version
+  version="$(_version)"
+  [[ -n "${version}" ]] || dybatpho::die "no version"
+  printf '%s\n' "${version}"
+}
+
+#######################################
 # @description Print the version
 # @noargs
 #######################################
 function _main {
-  local version
+  local version required
   version="$(_version)"
-  dybatpho::info "${version}"
+  # The strict mode dybatpho turns on stops the script on this failure.
+  required="$(_required_version)"
+  dybatpho::info "${version} ${required}"
 }
 
 _main
