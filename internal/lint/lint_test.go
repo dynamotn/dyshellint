@@ -216,3 +216,19 @@ func TestSortBreaksATieOnTheMessage(t *testing.T) {
 		t.Errorf("got %v, want the message in order", findings)
 	}
 }
+
+func TestShellCheckCrashNamesTheFile(t *testing.T) {
+	dir := t.TempDir()
+	fake := filepath.Join(dir, "shellcheck")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\necho 'out of memory' >&2\nexit 251\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(dir, "a.sh")
+	if err := os.WriteFile(script, []byte("echo hi\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ShellCheck{Binary: fake, Jobs: 1}.Run([]string{script})
+	if err == nil || !strings.Contains(err.Error(), script) || !strings.Contains(err.Error(), "out of memory") {
+		t.Errorf("got %v, want an error naming %s and the reason", err, script)
+	}
+}

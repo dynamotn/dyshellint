@@ -78,7 +78,13 @@ func runShellCheck(binary string, args []string) ([]Finding, error) {
 	}
 	var report shellCheckReport
 	if err := json.Unmarshal(out, &report); err != nil {
-		return nil, fmt.Errorf("decode %s output: %w", binary, err)
+		// A shellcheck that crashed or was killed, out of memory with many
+		// running at once, leaves no JSON; say which file and why.
+		why := ""
+		if exitErr != nil {
+			why = fmt.Sprintf(" (%s: %s)", exitErr.ProcessState, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("decode %s output for %s: %w%s", binary, args[len(args)-1], err, why)
 	}
 	findings := make([]Finding, 0, len(report.Comments))
 	for _, comment := range report.Comments {
