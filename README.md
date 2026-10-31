@@ -92,7 +92,7 @@ function Demo() {
   echo "hi"
 }
 
-grep -r $pattern . # dyshellint disable=SC2086 # the pattern is a word list
+grep -r "${pattern}" . # dyshellint disable=SC2086 # the pattern is a word list
 # At the end of a line: that line alone.
 ```
 
