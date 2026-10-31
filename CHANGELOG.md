@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `10#${n}`, a variable normalised with `n=$((10#${n}))`, or one handed by name
   to a helper after the check is left alone.
 
+- `BSG130` warns about `unset "map[${key}]"` and `unset arr[$i]`: `unset`
+  evaluates the subscript a second time, so a key holding `$(cmd)` runs it.
+  A single-quoted subscript, `unset -v 'map[$key]'`, is left alone.
+
 ## [1.1.0]
 
 ### Added
