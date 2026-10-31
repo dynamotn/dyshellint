@@ -47,7 +47,9 @@ func checkCleanupTrap(f *File, r *Reporter) {
 			return
 		}
 		names := splitWords(wordSource(handler))
-		if len(names) == 1 && p.Func(f, names[0]) != nil {
+		// A handler that is one function, with or without arguments, is read
+		// through its body.
+		if len(names) > 0 && p.Func(f, names[0]) != nil {
 			body := p.Func(f, names[0]).Body
 			names = nil
 			allCalls(body, func(_ *syntax.CallExpr, callee string) {
@@ -56,14 +58,15 @@ func checkCleanupTrap(f *File, r *Reporter) {
 		}
 		cleans, ends := false, false
 		for _, word := range names {
-			switch {
-			case word == "rm" || word == "rmdir" || strings.Contains(strings.ToLower(word), "clean"):
-				cleans = true
+			lower := strings.ToLower(word)
 			// A handler that puts the terminal back swallows the signal the
-			// same way.
-			case word == "stty" || word == "tput" || strings.Contains(strings.ToLower(word), "restore"):
+			// same way a cleanup does.
+			if word == "rm" || word == "rmdir" || strings.Contains(lower, "clean") ||
+				word == "stty" || word == "tput" || strings.Contains(lower, "restore") {
 				cleans = true
-			case word == "exit" || word == "kill" || word == "dybatpho::die":
+			}
+			// A helper that exits ends the handler as well as `exit` does.
+			if word == "exit" || word == "kill" || word == "dybatpho::die" || p.CanDie(f, word) {
 				ends = true
 			}
 		}

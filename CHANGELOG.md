@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without re-raising the signal or exiting, and suggests re-raising it with
   `trap - INT; kill -s INT "${BASHPID}"`.
 
+### Fixed
+
+- `BSG106` no longer warns about a handler that exits through a helper
+  function, or one whose function is called with arguments,
+  `trap 'cleanup "${dir}"' INT`.
+
 - `BSG057` also checks the operand of `dirname` and `basename`.
 
 ## [1.1.0]
