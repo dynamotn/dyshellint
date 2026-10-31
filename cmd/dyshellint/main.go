@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"regexp"
 	"runtime"
 	"slices"
 	"sort"
@@ -212,6 +213,7 @@ func checkAll(sources []lint.Source, selected []rules.Rule, opts options, stderr
 	directives := make(map[string]*directive.Set, len(sources))
 	var findings []lint.Finding
 	var files []*rules.File
+	byName := make(map[string]*rules.File, len(sources))
 	for i, source := range sources {
 		if parseErrs[i] != nil {
 			// A file the parser rejects is a syntax error, which is a finding
@@ -221,6 +223,7 @@ func checkAll(sources []lint.Source, selected []rules.Rule, opts options, stderr
 		}
 		directives[source.Name] = sets[i]
 		files = append(files, parsed[i])
+		byName[source.Name] = parsed[i]
 	}
 	// Every file is parsed before any rule runs, so that a rule can follow a
 	// call into the file that defines the function.
@@ -244,7 +247,7 @@ func checkAll(sources []lint.Source, selected []rules.Rule, opts options, stderr
 			}
 			fmt.Fprintf(stderr, "dyshellint: skipping %s, %v\n", tool.name, tool.run.err)
 		}
-		findings = append(findings, filterExternal(rename(sources, tool.run.findings), opts)...)
+		findings = append(findings, filterExternal(dropAssigned(rename(sources, tool.run.findings), byName), opts)...)
 	}
 	return suppress(lint.DropShadowed(findings), directives), nil
 }
@@ -263,6 +266,27 @@ func suppress(findings []lint.Finding, directives map[string]*directive.Set) []l
 	for _, finding := range findings {
 		if directives[finding.File].Suppressed(finding.Line, finding.Rule) {
 			continue
+		}
+		out = append(out, finding)
+	}
+	return out
+}
+
+// unassignedName picks the variable out of a ShellCheck finding that says it is
+// never set: SC2154, and SC2153 for a name that looks like a misspelling.
+var unassignedName = regexp.MustCompile(`^(?:Possible misspelling: )?([A-Za-z_][A-Za-z0-9_]*) (?:is referenced but not assigned|may not be assigned)`)
+
+// dropAssigned drops the ShellCheck findings that call a variable unset when a
+// file of the run sets it in a way ShellCheck cannot follow: a dybatpho option
+// spec, or another file that is not sourced by a literal path.
+func dropAssigned(findings []lint.Finding, files map[string]*rules.File) []lint.Finding {
+	out := findings[:0]
+	for _, finding := range findings {
+		if finding.Rule == "SC2154" || finding.Rule == "SC2153" {
+			match := unassignedName.FindStringSubmatch(finding.Message)
+			if file := files[finding.File]; match != nil && file != nil && file.Project != nil && file.Project.Assigned(match[1]) {
+				continue
+			}
 		}
 		out = append(out, finding)
 	}

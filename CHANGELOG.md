@@ -45,6 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BSG057` also checks the operand of `dirname` and `basename`.
 
+- ShellCheck's `SC2154` and `SC2153` are no longer reported for a variable
+  that a file of the run sets where ShellCheck cannot see it: a dybatpho
+  option spec such as `dybatpho::opts::flag "Quiet" QUIET`, or a file the
+  script does not source by a literal path. Such a variable needed a
+  `# shellcheck disable=SC2154` of its own before.
+
 ## [1.1.0]
 
 ### Added

@@ -7,9 +7,11 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"gitlab.com/dynamo-tools/dyshellint/internal/lint"
 	"gitlab.com/dynamo-tools/dyshellint/internal/rules"
 )
 
@@ -116,5 +118,28 @@ func TestListRulesText(t *testing.T) {
 	}
 	if !strings.HasPrefix(out.String(), "BSG001  error") {
 		t.Fatalf("unexpected first line: %q", strings.SplitN(out.String(), "\n", 2)[0])
+	}
+}
+
+func TestDropAssignedKeepsOnlyUnknownNames(t *testing.T) {
+	src := "#!/usr/bin/env bash\nfunction _spec {\n  dybatpho::opts::flag \"Be quiet\" QUIET --quiet\n}\necho \"${QUIET}\" \"${OTHER}\"\n"
+	file, err := rules.NewFile("spec.sh", []byte(src), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules.Link([]*rules.File{file})
+	findings := []lint.Finding{
+		{File: "spec.sh", Line: 5, Rule: "SC2154", Message: "QUIET is referenced but not assigned."},
+		{File: "spec.sh", Line: 5, Rule: "SC2153", Message: "Possible misspelling: QUIET may not be assigned. Did you mean quiet?"},
+		{File: "spec.sh", Line: 5, Rule: "SC2154", Message: "OTHER is referenced but not assigned."},
+		{File: "spec.sh", Line: 5, Rule: "SC2034", Message: "QUIET appears unused."},
+	}
+	var got []string
+	for _, finding := range dropAssigned(findings, map[string]*rules.File{"spec.sh": file}) {
+		got = append(got, finding.Rule+" "+finding.Message)
+	}
+	want := []string{"SC2154 OTHER is referenced but not assigned.", "SC2034 QUIET appears unused."}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
