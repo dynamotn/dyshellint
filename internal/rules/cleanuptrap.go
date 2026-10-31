@@ -13,7 +13,7 @@ func init() {
 		Code:     "BSG106",
 		Section:  sectionTempFiles,
 		Severity: lint.SeverityWarning,
-		Doc:      "Clean up on `EXIT` only, or end an `INT` or `TERM` handler with `exit`",
+		Doc:      "Clean up on `EXIT` only, or end an `INT` or `TERM` handler that cleans up or restores the terminal by re-raising the signal, or with `exit`",
 		Check:    checkCleanupTrap,
 	})
 }
@@ -59,12 +59,16 @@ func checkCleanupTrap(f *File, r *Reporter) {
 			switch {
 			case word == "rm" || word == "rmdir" || strings.Contains(strings.ToLower(word), "clean"):
 				cleans = true
+			// A handler that puts the terminal back swallows the signal the
+			// same way.
+			case word == "stty" || word == "tput" || strings.Contains(strings.ToLower(word), "restore"):
+				cleans = true
 			case word == "exit" || word == "kill" || word == "dybatpho::die":
 				ends = true
 			}
 		}
 		if cleans && !ends {
-			r.At(call.Pos(), "this cleanup replaces what `%s` does, so the script carries on after Ctrl-C and exits 0; trap `EXIT` alone, which Bash runs on `INT` and `TERM` too, or end the handler with `exit`", signal)
+			r.At(call.Pos(), "this handler replaces what `%s` does, so the script carries on after Ctrl-C and exits 0; trap `EXIT` alone, which Bash runs on `INT` and `TERM` too, or end the handler by re-raising the signal, `trap - %s; kill -s %s \"${BASHPID}\"`", signal, signal, signal)
 		}
 	})
 }

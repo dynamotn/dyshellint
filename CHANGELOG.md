@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which such an `&` is the matched text, even inside double quotes: a mask such
   as `<&>` put the secret back.
 
+### Changed
+
+- `BSG106` also warns about an `INT` or `TERM` handler that restores the
+  terminal, with `stty`, `tput` or a function whose name says it restores,
+  without re-raising the signal or exiting, and suggests re-raising it with
+  `trap - INT; kill -s INT "${BASHPID}"`.
+
 ## [1.1.0]
 
 ### Added

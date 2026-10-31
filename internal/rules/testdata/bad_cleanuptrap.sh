@@ -35,6 +35,9 @@ function _main {
   trap 'rm -f -- "${SCRATCH}/lock"; exit 143' TERM
   trap '' INT
   trap 'caught=INT' INT
+  trap 'stty sane' INT
+  trap 'tput cnorm >&2' TERM
+  trap 'stty sane; trap - INT; kill -s INT "${BASHPID}"' INT
 }
 
 _main
