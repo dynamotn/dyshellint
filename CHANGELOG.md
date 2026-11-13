@@ -88,6 +88,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BSG088` reports `[[ ... ]] && ((count++))` and `... || ((count++))`: the
   last command of a list still stops a `set -e` script when the count is 0.
 
+- `BSG036` no longer warns about `printf -v msg 'Error: ...'`, which prints
+  nothing, or an error line appended to a log with `>>`, and now reports
+  `echo "Error: ..." 2>/dev/null`, whose message still goes to STDOUT.
+
+- `BSG081` no longer warns about `printf -v` into a header variable, or about
+  a secret printed inside a `{ ...; }` piped to `--password-stdin`.
+
+- `BSG097` no longer takes `${BASH_VERSION%%.*}` in `(( ))` for the whole
+  version string.
+
+- `BSG096` no longer warns about a library path built in two steps from the
+  script's own directory, such as `LIB_DIR="${SCRIPT_DIR}/../lib"`.
+
+- `BSG083` no longer warns about a function defined inside an `if` that probes
+  the platform.
+
+- `BSG082` no longer warns inside functions when the script turns on
+  `set -o noclobber` or `set -C` at the top level.
+
+- `BSG014` no longer takes the value of a `read` option, such as the timeout
+  of `read -t "$1"`, for a variable the caller names.
+
 ## [1.2.0]
 
 ### Added

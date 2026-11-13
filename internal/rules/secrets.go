@@ -87,8 +87,10 @@ func checkSecretExposure(f *File, r *Reporter) {
 				up = f.parents()
 			}
 			// A value piped to another command or written to a file is handed
-			// over, not shown; that is how a secret should travel.
-			if (name == "echo" || name == "printf") && !printsToTerminal(stmt, up) {
+			// over, not shown; that is how a secret should travel. `printf -v`
+			// stores it in a variable and shows nothing.
+			if (name == "echo" || name == "printf") && !printsToTerminal(stmt, up) ||
+				name == "printf" && len(call.Args) > 1 && wordLiteral(call.Args[1]) == "-v" {
 				return true
 			}
 		default:
@@ -159,11 +161,14 @@ func printsToTerminal(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
 			return false
 		}
 	}
-	for n := up[stmt]; n != nil; n = up[n] {
+	// cur is the node below n on the way up, so that a `{ ...; }` piped as a
+	// whole counts as much as the statement alone.
+	var cur syntax.Node = stmt
+	for n := up[stmt]; n != nil; cur, n = n, up[n] {
 		switch p := n.(type) {
 		case *syntax.BinaryCmd:
 			if p.Op == syntax.Pipe || p.Op == syntax.PipeAll {
-				if syntax.Node(p.X) == syntax.Node(stmt) {
+				if syntax.Node(p.X) == cur {
 					return false
 				}
 			}

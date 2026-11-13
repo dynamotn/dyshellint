@@ -124,11 +124,48 @@ func callerNamedTarget(call *syntax.CallExpr) *syntax.ParamExp {
 			}
 		}
 	case "read", "mapfile", "readarray":
-		if len(call.Args) >= 2 {
-			return wordParam(call.Args[len(call.Args)-1])
+		if target := storeTarget(call, storeValueOptions[callName(call)]); target != nil {
+			return wordParam(target)
 		}
 	}
 	return nil
+}
+
+// storeValueOptions lists, by builtin, the short options that take a value.
+var storeValueOptions = map[string]string{"read": "adinNptu", "mapfile": "CcdnOsu", "readarray": "CcdnOsu"}
+
+// storeTarget returns the variable `read` or `mapfile` stores into: the last
+// argument past the options, or the value of `read -a`. The value of another
+// option, such as the timeout of `read -t "$1"`, names no variable.
+func storeTarget(call *syntax.CallExpr, takesValue string) *syntax.Word {
+	args := call.Args[1:]
+	var target *syntax.Word
+	for i := 0; i < len(args); i++ {
+		lit := wordLiteral(args[i])
+		if lit == "--" || len(lit) < 2 || lit[0] != '-' {
+			if lit == "--" {
+				i++
+			}
+			if i < len(args) {
+				target = args[len(args)-1]
+			}
+			break
+		}
+		for j := 1; j < len(lit); j++ {
+			if strings.IndexByte(takesValue, lit[j]) < 0 {
+				continue
+			}
+			// The value is the rest of the word, or else the next one.
+			if j+1 == len(lit) && i+1 < len(args) {
+				i++
+				if lit[j] == 'a' {
+					target = args[i]
+				}
+			}
+			break
+		}
+	}
+	return target
 }
 
 // pinnedByCase reports whether a call sits in a `case` arm over the same

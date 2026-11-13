@@ -112,9 +112,18 @@ func checkGnuOnlyFlags(f *File, r *Reporter) {
 	}
 	// A function is the scope of a probe. Outside any function, each top-level
 	// statement is, so an `if` that probes covers the calls in its branches.
-	// allCalls stops at a function, which is checked on its own.
+	// allCalls stops at a function, which is checked on its own. A function
+	// defined inside a probing `if` is covered by that probe as well, so its
+	// probe scope is the whole top-level statement that holds it.
+	up := f.parents()
 	eachFunc(f, func(decl *syntax.FuncDecl) {
-		check(decl.Body, decl)
+		probe := syntax.Node(decl)
+		for n := up[decl]; n != nil; n = up[n] {
+			if stmt, ok := n.(*syntax.Stmt); ok {
+				probe = stmt
+			}
+		}
+		check(decl.Body, probe)
 	})
 	for _, stmt := range f.Syntax.Stmts {
 		check(stmt, stmt)

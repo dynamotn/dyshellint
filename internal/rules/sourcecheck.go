@@ -97,19 +97,25 @@ var ownDirSources = map[string]bool{"BASH_SOURCE": true, "0": true}
 
 // ownDirVars returns the variables a file fills with its own directory, from
 // `BASH_SOURCE` or `$0`: a library found next to the script ships with it.
-// The expansions are found in the tree, so `${0}` counts as much as `$0`.
+// The expansions are found in the tree, so `${0}` counts as much as `$0`. A
+// variable built from one of those, as `LIB_DIR="${SCRIPT_DIR}/../lib"`, names
+// a place that ships with the script too, so the walk repeats until no new
+// variable turns up.
 func ownDirVars(f *File) map[string]bool {
 	out := map[string]bool{}
-	own := ownDirSources
-	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
-		assign, ok := node.(*syntax.Assign)
-		if !ok || assign.Name == nil || assign.Value == nil {
+	for grew := true; grew; {
+		grew = false
+		syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+			assign, ok := node.(*syntax.Assign)
+			if !ok || assign.Name == nil || assign.Value == nil || out[assign.Name.Value] {
+				return true
+			}
+			if anyVarIn(assign.Value, ownDirSources) || anyVarIn(assign.Value, out) {
+				out[assign.Name.Value] = true
+				grew = true
+			}
 			return true
-		}
-		if anyVarIn(assign.Value, own) {
-			out[assign.Name.Value] = true
-		}
-		return true
-	})
+		})
+	}
 	return out
 }

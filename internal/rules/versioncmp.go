@@ -79,9 +79,21 @@ func arithVersion(expr syntax.ArithmExpr) bool {
 }
 
 // versionParam reports whether an expansion yields a whole version string.
-// An element or a length such as `${#version}` is a plain number.
+// An element or a length such as `${#version}` is a plain number, and a
+// trimmed, sliced or replaced one such as `${BASH_VERSION%%.*}` is the part the
+// author cut out. A default such as `${version:-}` is still the whole string.
 func versionParam(pe *syntax.ParamExp) bool {
-	return pe != nil && pe.Param != nil && pe.Index == nil && !pe.Length && isVersionName(pe.Param.Value)
+	if pe == nil || pe.Param == nil || pe.Index != nil || pe.Length || pe.Excl || pe.Slice != nil || pe.Repl != nil {
+		return false
+	}
+	if pe.Exp != nil {
+		switch pe.Exp.Op {
+		case syntax.DefaultUnset, syntax.DefaultUnsetOrNull, syntax.ErrorUnset, syntax.ErrorUnsetOrNull, syntax.AssignUnset, syntax.AssignUnsetOrNull:
+		default:
+			return false
+		}
+	}
+	return isVersionName(pe.Param.Value)
 }
 
 func isVersionName(name string) bool {

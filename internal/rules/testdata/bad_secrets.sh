@@ -24,4 +24,7 @@ function _call {
   local token="v1" input_tokens=3
   printf 'parsed %s, used %s\n' "${token}" "${input_tokens}"
   echo "placeholder ${SECRET_PLACEHOLDER}"
+  local hdr
+  printf -v hdr 'Authorization: Bearer %s' "${API_TOKEN}"
+  { printf '%s' "${DB_PASSWORD}"; } | docker login --password-stdin
 }

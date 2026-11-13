@@ -246,8 +246,9 @@ func messageArg(call *syntax.CallExpr) *syntax.Word {
 			args = args[1:]
 		}
 	case "printf":
+		// `printf -v` stores the message in a variable and prints nothing.
 		if len(args) > 0 && wordLiteral(args[0]) == "-v" {
-			args = args[min(2, len(args)):]
+			return nil
 		}
 		if len(args) > 0 && wordLiteral(args[0]) == "--" {
 			args = args[1:]
@@ -289,11 +290,11 @@ func leadingLiteral(word *syntax.Word) string {
 	return b.String()
 }
 
-// toStderr reports whether what a statement prints goes to STDERR: through a
-// redirect of its own, or of a `{ ...; }` or `( ... )` it sits in.
+// toStderr reports whether what a statement prints stays off STDOUT: through
+// a redirect of its own, or of a `{ ...; }` or `( ... )` it sits in.
 func toStderr(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
 	for {
-		if redirectsToStderr(stmt) {
+		if redirectsStdout(stmt) {
 			return true
 		}
 		switch up[stmt].(type) {
@@ -309,16 +310,22 @@ func toStderr(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
 	}
 }
 
-// redirectsToStderr reports whether a statement carries a redirect to `&2` or
-// `/dev/stderr`.
-func redirectsToStderr(stmt *syntax.Stmt) bool {
+// redirectsStdout reports whether a statement sends its STDOUT elsewhere: to
+// `&2` or `/dev/stderr`, or into a file, where a message is a log line rather
+// than output. Only a redirect of fd 1 counts, so `2>/dev/null` leaves the
+// message on STDOUT.
+func redirectsStdout(stmt *syntax.Stmt) bool {
 	for _, redirect := range stmt.Redirs {
-		word := wordLiteral(redirect.Word)
-		if word == "2" || strings.Contains(word, "&2") || word == "/dev/stderr" {
-			return true
+		if redirect.N != nil && redirect.N.Value != "1" {
+			continue
 		}
-		if redirect.N != nil && redirect.N.Value == "2" {
+		switch redirect.Op {
+		case syntax.RdrOut, syntax.AppOut, syntax.RdrClob, syntax.RdrAll, syntax.AppAll:
 			return true
+		case syntax.DplOut:
+			if wordLiteral(redirect.Word) != "1" {
+				return true
+			}
 		}
 	}
 	return false

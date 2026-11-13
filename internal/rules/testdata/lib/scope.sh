@@ -105,3 +105,14 @@ function scope::fill_first {
   local after="late"
   printf '%s\n' "${after}"
 }
+
+#######################################
+# @description Ask for a line with a timeout, into REPLY
+# @arg $1 int Timeout in seconds
+# @arg $2 string Prompt
+#######################################
+function scope::ask {
+  local prompt="$2"
+  printf '%s' "${prompt}" >&2
+  read -r -t "$1" || true
+}

@@ -19,3 +19,7 @@ CHECKED_DIR="${LIB_DIR}"
 ZERO_DIR="$(cd "$(dirname "${0}")" && pwd)"
 # shellcheck source=/dev/null
 . "${ZERO_DIR}/lib/util.sh"
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+NEXT_DIR="${SCRIPT_DIR}/../lib"
+# shellcheck source=/dev/null
+. "${NEXT_DIR}/util.sh"

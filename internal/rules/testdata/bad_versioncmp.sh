@@ -17,4 +17,5 @@ function _check {
   [[ "${version}" == "1.10" ]] && printf 'exact\n'
   if ((version_major >= 4)); then printf 'modern\n'; fi
   if ((${#version} > 3)); then printf 'long\n'; fi
+  if ((${BASH_VERSION%%.*} < 4)); then printf 'bash 3\n'; fi
 }

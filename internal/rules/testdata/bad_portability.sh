@@ -4,6 +4,24 @@
 # @description Each call below fails on macOS, the BSDs or BusyBox.
 set -euo pipefail
 
+if [[ "$(uname)" == Darwin ]]; then
+  #######################################
+  # @description Print the modification time of a file, BSD stat
+  # @arg $1 string File to inspect
+  #######################################
+  function _mtime {
+    stat -f %m "$1"
+  }
+else
+  #######################################
+  # @description Print the modification time of a file, GNU stat
+  # @arg $1 string File to inspect
+  #######################################
+  function _mtime {
+    stat -c %Y "$1"
+  }
+fi
+
 #######################################
 # @description Use GNU options without checking for them
 # @arg $1 string File to inspect
@@ -52,3 +70,4 @@ function _flavoured_size {
 }
 
 sed -i 's/a/b/' settings.txt
+

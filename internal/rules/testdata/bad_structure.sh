@@ -17,6 +17,10 @@ function _first {
   printf 'error: %s\n' "${1}"
   echo -e "warning: ${1}"
   printf 'done: %s\n' "error"
+  local msg
+  printf -v msg 'Error: %s' "$1"
+  echo "ERROR: disk full" >> "$1.log"
+  echo "Error: no tty" 2>/dev/null
 }
 
 rm -rf ./cache

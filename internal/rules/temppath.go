@@ -22,6 +22,10 @@ func init() {
 var guessableParams = map[string]bool{"$": true, "BASHPID": true, "RANDOM": true, "PPID": true}
 
 func checkGuessablePathWrite(f *File, r *Reporter) {
+	// `set -C` at the top level holds in every function the script calls.
+	if setsNoclobber(f.Syntax) {
+		return
+	}
 	report := func(word *syntax.Word, how string) {
 		// A path under /tmp is BSG045's, whatever creates it.
 		if word == nil || !hasGuessablePart(word) || strings.Contains(wordSource(word), "/tmp/") {
