@@ -51,6 +51,10 @@ function _tidy {
   for dir in "$@"; do
     rmdir -- "${dir}"
   done &> /dev/null
+  {
+    rm -f -- "${dir}/b"
+    rmdir -- "${dir}"
+  } > /dev/null 2>&1
 }
 
 #######################################

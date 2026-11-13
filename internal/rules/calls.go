@@ -72,8 +72,9 @@ func init() {
 	)
 }
 
-// versionInfo reports whether an arithmetic operand is `BASH_VERSINFO[n]`.
-func versionInfo(expr syntax.ArithmExpr, index string) bool {
+// versionInfo reports whether an arithmetic or test operand is
+// `BASH_VERSINFO[n]`.
+func versionInfo(expr syntax.Node, index string) bool {
 	word, ok := expr.(*syntax.Word)
 	if !ok || len(word.Parts) != 1 {
 		return false
@@ -86,6 +87,10 @@ func versionInfo(expr syntax.ArithmExpr, index string) bool {
 	return ok && wordLiteral(at) == index
 }
 
+// majorMinorMessage is the finding on `major >= X && minor >= Y`, in either
+// of its spellings, `(( ))` and `[[ ]]`.
+const majorMinorMessage = "`major >= X && minor >= Y` refuses a newer major with a lower minor, such as Bash 6.0 for a 5.2 floor; write `BASH_VERSINFO[0] > X || (BASH_VERSINFO[0] == X && BASH_VERSINFO[1] >= Y)`"
+
 func checkVersionCompare(f *File, r *Reporter) {
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		switch n := node.(type) {
@@ -97,9 +102,18 @@ func checkVersionCompare(f *File, r *Reporter) {
 			y, okY := n.Y.(*syntax.BinaryArithm)
 			if okX && okY && x.Op == syntax.Geq && versionInfo(x.X, "0") &&
 				(y.Op == syntax.Geq || y.Op == syntax.Gtr) && versionInfo(y.X, "1") {
-				r.At(n.Pos(), "`major >= X && minor >= Y` refuses a newer major with a lower minor, such as Bash 6.0 for a 5.2 floor; write `BASH_VERSINFO[0] > X || (BASH_VERSINFO[0] == X && BASH_VERSINFO[1] >= Y)`")
+				r.At(n.Pos(), majorMinorMessage)
 			}
 		case *syntax.BinaryTest:
+			if n.Op == syntax.AndTest {
+				x, okX := n.X.(*syntax.BinaryTest)
+				y, okY := n.Y.(*syntax.BinaryTest)
+				if okX && okY && x.Op == syntax.TsGeq && versionInfo(x.X, "0") &&
+					(y.Op == syntax.TsGeq || y.Op == syntax.TsGtr) && versionInfo(y.X, "1") {
+					r.At(n.Pos(), majorMinorMessage)
+				}
+				return true
+			}
 			if n.Op != syntax.TsBefore && n.Op != syntax.TsAfter {
 				return true
 			}

@@ -23,6 +23,14 @@ func init() {
 // whole script on purpose.
 const scopedOptions = "eCfua"
 
+// optionNames are the long names of the scopedOptions letters, so that
+// `set +o noglob` and `set -f` count as one option turned off and on again.
+var optionNames = map[byte]string{'e': "errexit", 'C': "noclobber", 'f': "noglob", 'u': "nounset", 'a': "allexport"}
+
+// scopedNames are the options a function has to put back: the scopedOptions
+// letters and `pipefail`, which has none.
+var scopedNames = map[string]bool{"errexit": true, "noclobber": true, "noglob": true, "nounset": true, "allexport": true, "pipefail": true}
+
 func checkLibraryShellState(f *File, r *Reporter) {
 	if f.Role != RoleLibrary {
 		return
@@ -120,23 +128,33 @@ func hasLocalDash(decl *syntax.FuncDecl) bool {
 // every option it turns off it also turns on again (or the reverse), `shopt`
 // when it both sets and unsets, and `IFS` when it saves the old value.
 func restoredState(decl *syntax.FuncDecl) map[string]bool {
-	on, off := map[byte]bool{}, map[byte]bool{}
+	on, off := map[string]bool{}, map[string]bool{}
 	shoptSet, shoptUnset := false, false
 	out := map[string]bool{}
 	allCalls(decl.Body, func(call *syntax.CallExpr, name string) {
 		switch name {
 		case "set":
-			for _, arg := range setOptionWords(call) {
-				lit := wordLiteral(arg)
+			words := setOptionWords(call)
+			for i := 0; i < len(words); i++ {
+				lit := wordLiteral(words[i])
 				if len(lit) < 2 || (lit[0] != '-' && lit[0] != '+') {
 					continue
 				}
-				for i := 1; i < len(lit); i++ {
-					if lit[0] == '-' {
-						on[lit[i]] = true
-					} else {
-						off[lit[i]] = true
+				state := on
+				if lit[0] == '+' {
+					state = off
+				}
+				for _, letter := range []byte(lit[1:]) {
+					option := optionNames[letter]
+					if option == "" {
+						option = string(letter)
 					}
+					// `-o NAME` names the option in the next word.
+					if letter == 'o' && i+1 < len(words) {
+						i++
+						option = wordLiteral(words[i])
+					}
+					state[option] = true
 				}
 			}
 		case "shopt":
@@ -145,13 +163,13 @@ func restoredState(decl *syntax.FuncDecl) map[string]bool {
 		}
 	})
 	paired := len(on)+len(off) > 0
-	for letter := range on {
-		if strings.IndexByte(scopedOptions, letter) >= 0 && !off[letter] {
+	for option := range on {
+		if scopedNames[option] && !off[option] {
 			paired = false
 		}
 	}
-	for letter := range off {
-		if strings.IndexByte(scopedOptions, letter) >= 0 && !on[letter] {
+	for option := range off {
+		if scopedNames[option] && !on[option] {
 			paired = false
 		}
 	}

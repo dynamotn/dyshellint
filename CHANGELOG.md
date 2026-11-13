@@ -62,6 +62,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BSG049` no longer warns about `"${a[@]}"` behind an explicit length check,
   such as `if ((${#a[@]} > 0)); then` or `((${#a[@]})) &&`.
 
+- `BSG092` warns about `set -o noglob` and `set -o pipefail` in a library
+  function, as it does about `set -f`, and takes `set +o noglob` then `set -f`
+  for a restore.
+
+- `BSG120` warns about a block silenced with `> /dev/null 2>&1`, not only with
+  `2> /dev/null` or `&> /dev/null`.
+
+- `BSG116` catches `[[ ${BASH_VERSINFO[0]} -ge 4 && ${BASH_VERSINFO[1]} -ge 3 ]]`,
+  the `[[ ]]` spelling of the `(( ))` check it already reported.
+
 ## [1.2.0]
 
 ### Added

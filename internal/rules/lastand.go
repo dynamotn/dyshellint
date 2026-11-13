@@ -130,9 +130,13 @@ func checkBlockSilenced(f *File, r *Reporter) {
 		default:
 			return true
 		}
+		quiet := false
 		for _, redir := range stmt.Redirs {
-			if silencesStderr(redir) {
+			if silencesStderr(redir, quiet) {
 				r.At(redir.OpPos, "this hides the errors of every command in the block, not only the expected one; redirect the one command that may fail, and say why")
+			}
+			if (redir.Op == syntax.RdrOut || redir.Op == syntax.AppOut) && (redir.N == nil || redir.N.Value == "1") {
+				quiet = wordLiteral(redir.Word) == "/dev/null"
 			}
 		}
 		return true
@@ -140,8 +144,12 @@ func checkBlockSilenced(f *File, r *Reporter) {
 }
 
 // silencesStderr reports whether a redirection sends standard error to
-// /dev/null, alone or with standard output.
-func silencesStderr(redir *syntax.Redirect) bool {
+// /dev/null, alone or with standard output, or copies it onto a standard
+// output that already goes there, as `> /dev/null 2>&1` does.
+func silencesStderr(redir *syntax.Redirect, quiet bool) bool {
+	if redir.Op == syntax.DplOut && redir.N != nil && redir.N.Value == "2" && wordLiteral(redir.Word) == "1" {
+		return quiet
+	}
 	if wordLiteral(redir.Word) != "/dev/null" {
 		return false
 	}

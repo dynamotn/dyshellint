@@ -69,3 +69,22 @@ function libstate::positional {
   set -- -a "$@"
   printf '%s\n' "$@"
 }
+
+#######################################
+# @description Turn options on by their long names and leave them on
+# @noargs
+#######################################
+function libstate::long_names {
+  set -o noglob
+  set -o pipefail
+}
+
+#######################################
+# @description Turn an option off by its long name and back on by its letter
+# @noargs
+#######################################
+function libstate::long_restored {
+  set +o noglob
+  printf '%s\n' *
+  set -f
+}

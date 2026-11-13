@@ -6,4 +6,5 @@ set -euo pipefail
 
 ((BASH_VERSINFO[0] >= 5 && BASH_VERSINFO[1] >= 2)) || exit 1
 [[ "${BASH_VERSION}" > "5.2" ]] || exit 1
+[[ ${BASH_VERSINFO[0]} -ge 4 && ${BASH_VERSINFO[1]} -ge 3 ]] || exit 1
 ((BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 2))) || exit 1
