@@ -64,12 +64,21 @@ func Parse(lines []string, prog *syntax.File) *Set {
 	return set
 }
 
+// parseAbort are the ShellCheck codes that say it gave up on the file, so the
+// rest of it was never checked. No directive silences them: a trailing
+// `# shellcheck disable=all` is itself what makes ShellCheck give up, and
+// silencing that would hide every finding of the file without a word.
+var parseAbort = map[string]bool{"SC1072": true, "SC1073": true}
+
 // Suppressed reports whether a finding at line for code is silenced.
 func (s *Set) Suppressed(line int, code string) bool {
 	if s == nil {
 		return false
 	}
 	code = strings.ToUpper(code)
+	if parseAbort[code] {
+		return false
+	}
 	for _, sc := range s.scopes {
 		if line < sc.from || line > sc.to {
 			continue

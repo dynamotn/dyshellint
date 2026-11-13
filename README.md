@@ -98,7 +98,8 @@ grep -r "${pattern}" . # dyshellint disable=SC2086 # the pattern is a word list
 
 `disable=all` silences every code in the scope of the comment. A file the parser
 cannot read has no directives, since its only finding is the syntax error
-itself.
+itself. No directive silences ShellCheck's `SC1072` or `SC1073`: they say
+ShellCheck gave up on the file, and the rest of it went unchecked.
 
 A `# shellcheck disable=SC####` comment is read as well, and silences the
 ShellCheck codes it names — never a `BSG###` or `FMT001`, not even through

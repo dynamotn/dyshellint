@@ -28,6 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scripts in it, as naming an ignored file already did, instead of saying no
   shell files were found and passing.
 
+- The syntax error `BSG000` follows rule selection: `--rules BSG000` is
+  accepted, and `--exclude-rules BSG000` or a `--rules` list without it hides
+  it.
+
+- `--exclude-rules` rejects an unknown `BSG` code the way `--rules` does, so a
+  typo no longer skips nothing without a word.
+
+- A trailing `# shellcheck disable=all` no longer hides every ShellCheck
+  finding of the file. ShellCheck gives up on such a file with `SC1072` and
+  `SC1073`, and no directive silences those two any more.
+
 ## [1.2.0]
 
 ### Added

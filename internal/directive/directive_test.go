@@ -137,6 +137,23 @@ func TestShellCheckCommentCannotDisableTheGuide(t *testing.T) {
 	}
 }
 
+func TestParseAbortIsNeverSilenced(t *testing.T) {
+	set := parse(t, strings.Join([]string{
+		"#!/usr/bin/env bash",
+		"# dyshellint disable=all",
+		"echo one # shellcheck disable=all",
+	}, "\n"))
+
+	if !set.Suppressed(3, "SC1126") {
+		t.Error("disable=all should still silence an ordinary SC code")
+	}
+	for _, code := range []string{"SC1072", "SC1073"} {
+		if set.Suppressed(3, code) {
+			t.Errorf("%s says ShellCheck gave up on the file and should never be silenced", code)
+		}
+	}
+}
+
 func TestPlainCommentIsNotADirective(t *testing.T) {
 	set := parse(t, "#!/usr/bin/env bash\n# dyshellint is a linter\necho one\n")
 	if set.Suppressed(3, "BSG001") {

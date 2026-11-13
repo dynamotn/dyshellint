@@ -225,7 +225,7 @@ func checkAll(sources []lint.Source, selected []rules.Rule, opts options, stderr
 		if parseErrs[i] != nil {
 			// A file the parser rejects is a syntax error, which is a finding
 			// of its own rather than a reason to stop the run.
-			findings = append(findings, parseFinding(source.Name, parseErrs[i]))
+			findings = append(findings, filterExternal([]lint.Finding{parseFinding(source.Name, parseErrs[i])}, opts)...)
 			continue
 		}
 		directives[source.Name] = sets[i]
@@ -316,7 +316,7 @@ func parseFinding(path string, err error) lint.Finding {
 		File:     path,
 		Line:     1,
 		Column:   1,
-		Rule:     "BSG000",
+		Rule:     parseRule,
 		Severity: lint.SeverityError,
 		Level:    lint.SeverityError.String(),
 		Message:  fmt.Sprintf("cannot parse as bash: %v", err),
@@ -324,12 +324,16 @@ func parseFinding(path string, err error) lint.Finding {
 	}
 }
 
+// parseRule is the code of a file the parser rejects. It is no rule of the
+// registry, yet --rules and --exclude-rules select it like one.
+const parseRule = "BSG000"
+
 // selectRules applies --rules and --exclude-rules to the registry.
 func selectRules(only, exclude string) ([]rules.Rule, error) {
 	keep := codeSet(only)
 	drop := codeSet(exclude)
 	var selected []rules.Rule
-	known := map[string]bool{}
+	known := map[string]bool{parseRule: true}
 	for _, rule := range rules.All() {
 		known[rule.Code] = true
 		if len(keep) > 0 && !keep[rule.Code] {
@@ -340,11 +344,14 @@ func selectRules(only, exclude string) ([]rules.Rule, error) {
 		}
 		selected = append(selected, rule)
 	}
-	for code := range keep {
-		// An external code in --rules is meaningful for shellcheck, so only an
-		// unknown BSG code is a mistake worth reporting.
-		if strings.HasPrefix(code, "BSG") && !known[code] {
-			return nil, fmt.Errorf("unknown rule %q", code)
+	// An external code in either list is meaningful for shellcheck, so only an
+	// unknown BSG code is a mistake worth reporting, and in both lists alike:
+	// a typo in --exclude-rules would otherwise skip nothing without a word.
+	for _, set := range []map[string]bool{keep, drop} {
+		for code := range set {
+			if strings.HasPrefix(code, "BSG") && !known[code] {
+				return nil, fmt.Errorf("unknown rule %q", code)
+			}
 		}
 	}
 	return selected, nil
@@ -360,7 +367,8 @@ func codeSet(list string) map[string]bool {
 	return set
 }
 
-// filterExternal applies the same rule selection to shellcheck and shfmt.
+// filterExternal applies the same rule selection to shellcheck, shfmt, and the
+// parse error of a file, none of which is a rule of the registry.
 func filterExternal(findings []lint.Finding, opts options) []lint.Finding {
 	keep := codeSet(opts.only)
 	drop := codeSet(opts.exclude)

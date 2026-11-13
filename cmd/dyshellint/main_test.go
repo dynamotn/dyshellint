@@ -82,6 +82,36 @@ func TestUnknownRuleIsRejected(t *testing.T) {
 	}
 }
 
+func TestUnknownExcludedRuleIsRejected(t *testing.T) {
+	_, _, err := runWith(t, "", append(offline, "--exclude-rules", "BSG01", ".")...)
+	if err == nil || !strings.Contains(err.Error(), "BSG01") {
+		t.Errorf("got %v, want an unknown rule error", err)
+	}
+}
+
+func TestParseErrorFollowsRuleSelection(t *testing.T) {
+	broken := "#!/usr/bin/env bash\nif true; then\n"
+	for _, tc := range []struct {
+		args []string
+		want bool
+	}{
+		{nil, true},
+		{[]string{"--rules", "BSG000"}, true},
+		{[]string{"--rules", "SC2086"}, false},
+		{[]string{"--exclude-rules", "BSG000"}, false},
+	} {
+		args := slices.Concat(offline, tc.args, []string{"--stdin-filename", "broken.sh", "-"})
+		stdout, _, err := runWith(t, broken, args...)
+		if err != nil && !errors.Is(err, errFindings) {
+			t.Errorf("%v: got %v", tc.args, err)
+			continue
+		}
+		if got := strings.Contains(stdout, "BSG000"); got != tc.want {
+			t.Errorf("%v: BSG000 reported = %v, want %v\n%s", tc.args, got, tc.want, stdout)
+		}
+	}
+}
+
 func TestListRulesRejectsUnknownFormat(t *testing.T) {
 	_, _, err := runWith(t, "", "--list-rules", "--format", "sarif")
 	if err == nil || !strings.Contains(err.Error(), "sarif") {
