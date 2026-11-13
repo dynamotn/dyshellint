@@ -36,6 +36,9 @@ var shellVariables = map[string]bool{
 	"PIPESTATUS": true, "PPID": true, "PS4": true, "PWD": true, "RANDOM": true, "REPLY": true,
 	"SECONDS": true, "SHELLOPTS": true, "SHLVL": true, "SRANDOM": true, "UID": true,
 	"HOME": true, "PATH": true,
+	// Set by Bash for the function a completion runs.
+	"COMP_CWORD": true, "COMP_KEY": true, "COMP_LINE": true, "COMP_POINT": true,
+	"COMP_TYPE": true, "COMP_WORDS": true,
 }
 
 func checkBareEnvironment(f *File, r *Reporter) {

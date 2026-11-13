@@ -18,6 +18,7 @@ function _spec_main {
   dybatpho::opts::param "Log level" LOG_LEVEL --log-level init:="info" \
     validate:"dybatpho::validate_log_level \$OPTARG"
   dybatpho::opts::disp "Show help" --help action:"dybatpho::generate_help _spec_main"
+  dybatpho::opts::disp "Show version" --version action:"printf '%s\n' 1.0.0"
 }
 
 #######################################

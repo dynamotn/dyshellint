@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Twenty-nine rules for the sections the guide gained, all warnings unless
+  marked as an error:
+  - Testing: `BSG132` a shell function that shadows a real command in a Bats
+    file, instead of a stub on `PATH`.
+  - Environment: `BSG133` a hand-written `complete` next to a `_spec_*`
+    function; `BSG134` (error) sourcing `~/.bashrc`, `~/.profile` or another
+    login profile; `BSG135` a container entrypoint that does not end with
+    `exec`; `BSG136` checking for root through `$USER`, `whoami` or `id -u`;
+    `BSG137` a home directory built as `/home/${user}`; `BSG138` writing under
+    `/var/log`; `BSG139` detaching with `nohup` or `setsid`; `BSG156` a `PS4`
+    without `${LINENO}`; `BSG157` a `\r` or erase-line progress line in a file
+    that never checks for a terminal; `BSG159` a spec without `--version`;
+    `BSG160` a download that is run, installed or unpacked with no checksum
+    or signature check; `BSG161` a `select`, `fzf`, `gum`, `whiptail` or
+    `dialog` menu in a file that never checks for a terminal.
+  - Comments: `BSG144` commented-out code; `BSG149` a license paragraph in
+    the header with no `SPDX-License-Identifier:` line.
+  - Formatting: `BSG140` (error) CRLF line endings or a byte order mark;
+    `BSG142` compound commands nested more than 3 deep; `BSG143` a function
+    longer than 50 lines of code.
+  - Features and Bugs: `BSG145` changing the case of one value with `tr`;
+    `BSG146` `shopt -s nocasematch` that is never turned off; `BSG148`
+    (error) `return` with a word or a command substitution; `BSG150`
+    `date +%s` to read the clock; `BSG152` `exec` on a fixed descriptor
+    number; `BSG153` `>>` to the same file on every iteration of a loop.
+  - Calling Commands: `BSG141` `export -f`; `BSG147` `pushd`, `popd` and
+    `cd -`; `BSG154` a loop that sleeps until a condition holds, with no
+    deadline; `BSG155` a loop that starts background jobs with no limit;
+    `BSG158` (error) `StrictHostKeyChecking=no` or
+    `UserKnownHostsFile=/dev/null`.
+
+### Fixed
+
+- `BSG073` no longer asks for a default on `COMP_WORDS`, `COMP_CWORD` and the
+  other variables Bash sets for a completion function.
+
 ## [1.2.1]
 
 ### Changed
