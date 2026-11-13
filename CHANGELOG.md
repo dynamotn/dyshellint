@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   walked once for its functions, commands and parents instead of once per
   rule, and the text report is written through a buffer.
 
+### Fixed
+
+- `FMT001` points at the first line shfmt would change, not at up to three
+  unchanged lines above it, so a `# dyshellint disable=FMT001` on that line
+  silences it.
+
 ## [1.2.0]
 
 ### Added

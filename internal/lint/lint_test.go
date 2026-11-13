@@ -28,9 +28,12 @@ func TestHunkFindings(t *testing.T) {
 	diff := strings.Join([]string{
 		"--- a/script.sh.orig",
 		"+++ b/script.sh",
-		"@@ -3,5 +3,5 @@",
+		"@@ -1,5 +1,5 @@",
+		" #!/usr/bin/env bash",
+		" ",
 		"-if [ -n $name ]",
 		"+if [[ -n ${name} ]]",
+		" then",
 		"@@ -20 +20 @@",
 		"-done",
 		"+done",

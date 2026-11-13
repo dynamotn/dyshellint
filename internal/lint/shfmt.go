@@ -74,14 +74,23 @@ func (s Shfmt) Run(files []string) ([]Finding, error) {
 }
 
 // hunkFindings turns a unified diff into one finding per hunk, so the report
-// points at the lines to reformat rather than at the file as a whole.
+// points at the lines to reformat rather than at the file as a whole. A hunk
+// opens with up to three unchanged lines of context, so the finding moves past
+// them to the first changed line, which is where a disable comment goes.
 func hunkFindings(file, diff string) []Finding {
 	var findings []Finding
+	leading := false
 	for _, line := range strings.Split(diff, "\n") {
 		match := hunkHeader.FindStringSubmatch(line)
 		if match == nil {
+			if leading && strings.HasPrefix(line, " ") {
+				findings[len(findings)-1].Line++
+			} else {
+				leading = false
+			}
 			continue
 		}
+		leading = true
 		number, _ := strconv.Atoi(match[1])
 		findings = append(findings, Finding{
 			File:     file,
