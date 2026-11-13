@@ -38,7 +38,7 @@ func checkDieInSubst(f *File, r *Reporter) {
 			return true
 		}
 		if up == nil {
-			up = parents(f.Syntax)
+			up = f.parents()
 		}
 		stmt := enclosingStmt(cs, up)
 		if stmt == nil || stopsAnyway(cs, up) {

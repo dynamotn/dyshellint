@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -26,7 +27,13 @@ import (
 )
 
 func main() {
-	err := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	// A run over a large tree prints thousands of lines, one write each
+	// without a buffer.
+	stdout := bufio.NewWriter(os.Stdout)
+	err := run(os.Args[1:], os.Stdin, stdout, os.Stderr)
+	if flushErr := stdout.Flush(); flushErr != nil && (err == nil || errors.Is(err, errFindings)) {
+		err = flushErr
+	}
 	switch {
 	case err == nil, errors.Is(err, flag.ErrHelp):
 		// Asking for the usage is not a failure of the linter.

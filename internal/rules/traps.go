@@ -43,7 +43,7 @@ func checkLibraryTraps(f *File, r *Reporter) {
 			}
 		}
 	})
-	up := parents(f.Syntax)
+	up := f.parents()
 	eachCall(f, func(call *syntax.CallExpr, name string) {
 		if name != "trap" || len(call.Args) < 3 {
 			return

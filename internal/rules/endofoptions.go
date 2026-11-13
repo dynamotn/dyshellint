@@ -34,7 +34,7 @@ var skipsFirst = map[string]bool{"chmod": true, "chown": true}
 
 func checkEndOfOptions(f *File, r *Reporter) {
 	inputs := map[*syntax.FuncDecl]map[string]bool{}
-	up := parents(f.Syntax)
+	up := f.parents()
 	eachCall(f, func(call *syntax.CallExpr, name string) {
 		valued, ok := optionTakers[name]
 		if !ok {

@@ -69,7 +69,7 @@ func checkDryRunBypass(f *File, r *Reporter) {
 // itself guarded. A function nothing in the file calls is not guarded, since
 // whoever calls it from elsewhere may not check.
 func dryRunGuarded(f *File) map[string]bool {
-	up := parents(f.Syntax)
+	up := f.parents()
 	sites := map[string][]*syntax.CallExpr{}
 	eachCall(f, func(call *syntax.CallExpr, name string) {
 		if name == "dybatpho::dry_run" {

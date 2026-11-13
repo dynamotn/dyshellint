@@ -84,7 +84,7 @@ func checkSecretExposure(f *File, r *Reporter) {
 		case httpClients[name]:
 		case loggers[name]:
 			if up == nil {
-				up = parents(f.Syntax)
+				up = f.parents()
 			}
 			// A value piped to another command or written to a file is handed
 			// over, not shown; that is how a secret should travel.

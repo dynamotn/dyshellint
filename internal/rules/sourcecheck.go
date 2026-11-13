@@ -22,7 +22,7 @@ func checkUncheckedSource(f *File, r *Reporter) {
 	}
 	tested := fileTestedVars(f)
 	own := ownDirVars(f)
-	up := parents(f.Syntax)
+	up := f.parents()
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
 		if !ok {

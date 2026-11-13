@@ -161,7 +161,7 @@ func checkBracedSpecialParams(f *File, r *Reporter) {
 }
 
 func checkExitStatusInspection(f *File, r *Reporter) {
-	up := parents(f.Syntax)
+	up := f.parents()
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
 		if !ok || !testsStatus(stmt) || readsStatusInList(stmt, up) {

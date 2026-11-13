@@ -30,7 +30,7 @@ func checkPostIncrementStatement(f *File, r *Reporter) {
 	if !stopsOnError(f) {
 		return
 	}
-	up := parents(f.Syntax)
+	up := f.parents()
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
 		if !ok || stmt.Negated {

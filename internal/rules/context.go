@@ -72,6 +72,47 @@ type File struct {
 	// linkOnce guards the project a file builds for itself when no run linked
 	// it, since the rules of one file may ask for it at the same time.
 	linkOnce sync.Once
+	// indexOnce guards what most rules would otherwise walk the whole tree
+	// for, built once on first use and shared by every rule of the file.
+	indexOnce sync.Once
+	funcs     []*syntax.FuncDecl
+	calls     []namedCall
+	up        map[syntax.Node]syntax.Node
+}
+
+// namedCall is a simple command whose name is a plain literal.
+type namedCall struct {
+	call *syntax.CallExpr
+	name string
+}
+
+// index walks the tree once for the functions, the named calls and the
+// parent of every node, in source order.
+func (f *File) index() *File {
+	f.indexOnce.Do(func() {
+		f.up = parents(f.Syntax)
+		syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+			switch node := node.(type) {
+			case *syntax.FuncDecl:
+				if node.Name != nil {
+					f.funcs = append(f.funcs, node)
+				}
+			case *syntax.CallExpr:
+				if len(node.Args) > 0 {
+					if name := wordLiteral(node.Args[0]); name != "" {
+						f.calls = append(f.calls, namedCall{node, name})
+					}
+				}
+			}
+			return true
+		})
+	})
+	return f
+}
+
+// parents maps every node of the file to the node that holds it.
+func (f *File) parents() map[syntax.Node]syntax.Node {
+	return f.index().up
 }
 
 // Reporter collects the findings of one rule against one file.

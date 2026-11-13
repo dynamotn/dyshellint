@@ -30,7 +30,7 @@ func checkLibraryExit(f *File, r *Reporter) {
 		return
 	}
 	handlers := trapHandlers(f)
-	up := parents(f.Syntax)
+	up := f.parents()
 	eachCall(f, func(call *syntax.CallExpr, name string) {
 		if name != "exit" || inSubshell(call, up) {
 			return

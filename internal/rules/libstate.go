@@ -27,7 +27,7 @@ func checkLibraryShellState(f *File, r *Reporter) {
 	if f.Role != RoleLibrary {
 		return
 	}
-	up := parents(f.Syntax)
+	up := f.parents()
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		text := f.Text(decl.Pos(), decl.End())
 		localOptions := hasLocalDash(decl)

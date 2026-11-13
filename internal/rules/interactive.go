@@ -25,7 +25,7 @@ var promptName = regexp.MustCompile(`(?i)prompt|ask|confirm|menu|select|input|qu
 var ttyCheck = regexp.MustCompile(`-t [0-2]\b|is_tty|is_interactive|interactive|\btty\b`)
 
 func checkUnguardedPrompt(f *File, r *Reporter) {
-	up := parents(f.Syntax)
+	up := f.parents()
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
 		if !ok {

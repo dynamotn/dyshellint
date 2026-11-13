@@ -51,12 +51,9 @@ func init() {
 
 // eachFunc walks every function declaration in source order.
 func eachFunc(f *File, fn func(*syntax.FuncDecl)) {
-	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
-		if decl, ok := node.(*syntax.FuncDecl); ok && decl.Name != nil {
-			fn(decl)
-		}
-		return true
-	})
+	for _, decl := range f.index().funcs {
+		fn(decl)
+	}
 }
 
 func checkFunctionKeyword(f *File, r *Reporter) {

@@ -20,7 +20,7 @@ func checkLibraryCd(f *File, r *Reporter) {
 	if f.Role != RoleLibrary {
 		return
 	}
-	up := parents(f.Syntax)
+	up := f.parents()
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		var moves []*syntax.CallExpr
 		restores := false

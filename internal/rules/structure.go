@@ -225,7 +225,7 @@ func checkErrorToStderr(f *File, r *Reporter) {
 			return true
 		}
 		if up == nil {
-			up = parents(f.Syntax)
+			up = f.parents()
 		}
 		if toStderr(stmt, up) {
 			return true
@@ -342,14 +342,7 @@ func checkExecutableBit(f *File, r *Reporter) {
 
 // eachCall walks every simple command whose name is a plain literal.
 func eachCall(f *File, fn func(call *syntax.CallExpr, name string)) {
-	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
-		call, ok := node.(*syntax.CallExpr)
-		if !ok || len(call.Args) == 0 {
-			return true
-		}
-		if name := wordLiteral(call.Args[0]); name != "" {
-			fn(call, name)
-		}
-		return true
-	})
+	for _, c := range f.index().calls {
+		fn(c.call, c.name)
+	}
 }

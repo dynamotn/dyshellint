@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The rules of the guide take about half the CPU time they did: each file is
+  walked once for its functions, commands and parents instead of once per
+  rule, and the text report is written through a buffer.
+
 ## [1.2.0]
 
 ### Added

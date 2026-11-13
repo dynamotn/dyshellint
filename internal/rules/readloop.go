@@ -19,7 +19,7 @@ func init() {
 }
 
 func checkReadLoopLastLine(f *File, r *Reporter) {
-	up := parents(f.Syntax)
+	up := f.parents()
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		loop, ok := node.(*syntax.WhileClause)
 		if !ok || loop.Until || len(loop.Cond) != 1 {

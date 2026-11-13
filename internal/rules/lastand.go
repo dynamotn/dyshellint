@@ -65,7 +65,7 @@ func checkTrailingAnd(f *File, r *Reporter) {
 // the file are seen, so a public function of a library, which other files
 // call, is never one.
 func predicateFuncs(f *File) map[string]bool {
-	up := parents(f.Syntax)
+	up := f.parents()
 	tested := map[string]bool{}
 	untested := map[string]bool{}
 	eachCall(f, func(call *syntax.CallExpr, name string) {

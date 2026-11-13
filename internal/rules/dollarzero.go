@@ -22,7 +22,7 @@ func checkDollarZeroInLibrary(f *File, r *Reporter) {
 	if f.Role != RoleLibrary {
 		return
 	}
-	up := parents(f.Syntax)
+	up := f.parents()
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		pe, ok := node.(*syntax.ParamExp)
 		if !ok || pe.Param == nil || pe.Param.Value != "0" || isMainGuard(pe, up, f) || !locatesFile(pe, up) {

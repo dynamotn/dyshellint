@@ -78,7 +78,10 @@ func checkGnuOnlyFlags(f *File, r *Reporter) {
 	if linuxOnly.Match(f.Src) {
 		return
 	}
-	check := func(scope syntax.Node) {
+	// The probe is read only once a GNU option turns up, since most scopes
+	// have none and the probe is a regexp over the whole scope.
+	check := func(scope, probe syntax.Node) {
+		probed, probes := false, false
 		allCalls(scope, func(call *syntax.CallExpr, name string) {
 			options, ok := gnuOnly[name]
 			if !ok {
@@ -90,6 +93,12 @@ func checkGnuOnlyFlags(f *File, r *Reporter) {
 					return
 				}
 				if opt, ok := matchGnuOption(lit, options, valueOptions[name]); ok {
+					if !probed {
+						probed, probes = true, flavourProbe.MatchString(f.Text(probe.Pos(), probe.End()))
+					}
+					if probes {
+						return
+					}
 					const msg = "`%s %s` exists only in the GNU tools, so the call fails on macOS, the BSDs and BusyBox; use a portable form, or probe for the flavour first"
 					if advice, ok := dybatphoPortable[name]; ok {
 						reportWithDybatpho(f, r, arg.Pos(), advice, msg, name, opt)
@@ -105,14 +114,10 @@ func checkGnuOnlyFlags(f *File, r *Reporter) {
 	// statement is, so an `if` that probes covers the calls in its branches.
 	// allCalls stops at a function, which is checked on its own.
 	eachFunc(f, func(decl *syntax.FuncDecl) {
-		if !flavourProbe.MatchString(f.Text(decl.Pos(), decl.End())) {
-			check(decl.Body)
-		}
+		check(decl.Body, decl)
 	})
 	for _, stmt := range f.Syntax.Stmts {
-		if !flavourProbe.MatchString(f.Text(stmt.Pos(), stmt.End())) {
-			check(stmt)
-		}
+		check(stmt, stmt)
 	}
 }
 

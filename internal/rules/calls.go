@@ -237,7 +237,7 @@ func checkFlagAsCommand(f *File, r *Reporter) {
 // checkSplitRedirect reports `> file 2>&1`, which `&>` says in one operator,
 // and `2>&1 > file`, which still sends errors to the terminal.
 func checkSplitRedirect(f *File, r *Reporter) {
-	up := parents(f.Syntax)
+	up := f.parents()
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
 		stmt, ok := node.(*syntax.Stmt)
 		if !ok {
