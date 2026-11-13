@@ -53,6 +53,40 @@ func TestDiscoverLeavesOutWhatGitIgnores(t *testing.T) {
 	if !slices.Equal(files, []string{bundle}) {
 		t.Errorf("got %v, want %v", files, []string{bundle})
 	}
+
+	// So is a directory git ignores as a whole, which used to yield nothing.
+	files, err = Discover([]string{filepath.Join(dir, "dist")})
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if !slices.Equal(files, []string{bundle}) {
+		t.Errorf("got %v, want %v", files, []string{bundle})
+	}
+}
+
+func TestIsShellFileReadsTheInterpreter(t *testing.T) {
+	dir := t.TempDir()
+	for shebang, want := range map[string]bool{
+		"#!/usr/bin/env bash":           true,
+		"#!/bin/bash -eu":               true,
+		"#!/bin/sh":                     true,
+		"#!/usr/bin/env -S bash -e":     true,
+		"#! /usr/bin/env LC_ALL=C bash": true,
+		"#!/usr/bin/env fish":           false,
+		"#!/bin/zsh":                    false,
+		"#!/usr/bin/python3 -Wshare":    false,
+		"#!/usr/bin/env":                false,
+		"#!":                            false,
+		"# bash, but not a shebang":     false,
+	} {
+		name := filepath.Join(dir, "script")
+		if err := os.WriteFile(name, []byte(shebang+"\necho hi\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got := IsShellFile(name); got != want {
+			t.Errorf("%q: got %v, want %v", shebang, got, want)
+		}
+	}
 }
 
 func TestDiscoverWalksASymlinkedDirectory(t *testing.T) {

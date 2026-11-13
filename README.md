@@ -25,8 +25,8 @@ STDERR and reports everything else.
 
 ```sh
 # The whole repository, or one file. A directory is walked without what git
-# ignores there, such as a generated bundle; a file named outright is checked
-# even when it is ignored.
+# ignores there, such as a generated bundle; a file or directory named outright
+# is checked even when it is ignored.
 dyshellint ./scripts
 dyshellint ./scripts/deploy.sh
 

@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged lines above it, so a `# dyshellint disable=FMT001` on that line
   silences it.
 
+- A file without a shell extension is checked only when its shebang runs
+  `bash` or `sh`, directly or through `env`. Any shebang holding the letters
+  `sh` used to count, so a fish, zsh or `python3 -Wshare` script was parsed
+  as bash and reported as a syntax error.
+
+- Naming a directory git ignores, such as `dyshellint build`, checks the
+  scripts in it, as naming an ignored file already did, instead of saying no
+  shell files were found and passing.
+
 ## [1.2.0]
 
 ### Added
