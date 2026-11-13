@@ -30,13 +30,15 @@ var (
 	codeSignal = regexp.MustCompile(`^(local|export|readonly|declare|typeset)\s|^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?=|\$[{(A-Za-z_@#?0-9]|\s\|\s|&&|\|\||\[\[\s|^[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_]`)
 	// sentenceStart is a capitalised word, which opens a sentence far more
 	// often than a line of code.
-	sentenceStart = regexp.MustCompile(`^[A-Z][a-z]`)
+	sentenceStart = regexp.MustCompile(`^\p{Lu}\p{Ll}`)
 	// codeKeyword is a reserved word that opens or closes a compound command.
 	codeKeyword = map[string]bool{
 		"if": true, "then": true, "elif": true, "else": true, "fi": true, "for": true, "while": true, "until": true,
 		"do": true, "done": true, "case": true, "esac": true, "return": true, "function": true, "}": true,
 	}
-	plainWord = regexp.MustCompile(`^[A-Za-z][A-Za-z'-]*[,.]?$`)
+	// plainWord is a word of any language, so that a comment written in
+	// Vietnamese or German reads as prose just as an English one does.
+	plainWord = regexp.MustCompile(`^\p{L}[\p{L}'-]*[,.]?$`)
 )
 
 // checkCommentedCode reports a run of comment lines that reads as shell code
