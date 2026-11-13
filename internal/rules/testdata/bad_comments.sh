@@ -18,3 +18,5 @@ function _partly_documented {
 # TODO: document the flags with @arg tags
 # TODO @arg tags for the flags
 # TODO: ask bob@example.com about the format
+# TODO(#123): track the issue
+# TODO(https://gitlab.com/x/y/-/issues/4): track the issue

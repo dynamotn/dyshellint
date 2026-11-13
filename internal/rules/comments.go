@@ -145,7 +145,16 @@ func funcComments(f *File) map[*syntax.FuncDecl][]syntax.Comment {
 				block = append(block, comment)
 			}
 		}
-		out[decl] = block
+		// Only the lines that run without a gap up to the declaration are its
+		// header: the parser also hands the first function the file header
+		// that a blank line separates from it.
+		next := decl.Position.Line()
+		start := len(block)
+		for start > 0 && block[start-1].Pos().Line() == next-1 {
+			start--
+			next--
+		}
+		out[decl] = block[start:]
 		return true
 	})
 	return out
@@ -221,14 +230,18 @@ func checkTodoAuthor(f *File, r *Reporter) {
 		if match == nil {
 			return
 		}
-		name := match[1]
+		name := strings.TrimSpace(match[1])
+		// `TODO(#123)` and `TODO(https://...)` point at an issue, not a person.
+		if strings.HasPrefix(name, "#") || strings.Contains(name, "/") {
+			return
+		}
 		if name == "" {
 			name = match[2]
 			if shdocTags[name] {
 				return
 			}
 		}
-		r.At(comment.Pos(), "TODO comment names %q; `git blame` already answers who wrote it", strings.TrimSpace(name))
+		r.At(comment.Pos(), "TODO comment names %q; `git blame` already answers who wrote it", name)
 	})
 }
 

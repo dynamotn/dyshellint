@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   finding of the file. ShellCheck gives up on such a file with `SC1072` and
   `SC1073`, and no directive silences those two any more.
 
+- `BSG021` and `BSG016` no longer take the file header for the doc of the
+  first function when a blank line separates them, so an undocumented first
+  function and a variable only the file header names are reported.
+
+- `BSG023` no longer reads an issue reference, such as `TODO(#123)` or
+  `TODO(https://…/issues/4)`, as the name of an author.
+
 ## [1.2.0]
 
 ### Added
