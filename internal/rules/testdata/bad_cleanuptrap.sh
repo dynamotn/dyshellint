@@ -41,6 +41,8 @@ function _main {
   trap _cleanup_then_bail INT
   trap '_remove_and_exit "${SCRATCH}"' TERM
   trap '_cleanup "${SCRATCH}"' INT
+  trap '_cleanup; trap - INT; kill -s INT "$$"' INT
+  trap "_cleanup; exit 130" TERM
 }
 
 #######################################

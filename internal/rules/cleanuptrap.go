@@ -47,11 +47,11 @@ func checkCleanupTrap(f *File, r *Reporter) {
 			return
 		}
 		names := splitWords(wordSource(handler))
-		// A handler that is one function, with or without arguments, is read
-		// through its body.
+		// A handler that opens with a function is read through its body, and
+		// the rest of the handler still counts: `_cleanup; exit 130` ends.
 		if len(names) > 0 && p.Func(f, names[0]) != nil {
 			body := p.Func(f, names[0]).Body
-			names = nil
+			names = names[1:]
 			allCalls(body, func(_ *syntax.CallExpr, callee string) {
 				names = append(names, callee)
 			})

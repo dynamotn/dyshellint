@@ -53,3 +53,16 @@ function arrays::defaulted {
   fi
   printf '%s\n' "${targets[@]}"
 }
+
+#######################################
+# @description Print the copy only when it holds something
+# @arg $@ string Arguments to copy
+#######################################
+function arrays::guarded {
+  local -a picked=()
+  picked=("$@")
+  ((${#picked[@]})) && printf '%s\n' "${picked[@]}"
+  if ((${#picked[@]} > 0)); then
+    printf '%s\n' "${picked[@]}"
+  fi
+}

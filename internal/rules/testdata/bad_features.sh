@@ -40,4 +40,7 @@ function _walk {
   test $? -ne 0 && printf 'no match\n'
 
   printf 'data\n' > "/tmp/walk.$$"
+  local scratch
+  scratch="$(mktemp /tmp/walk.XXXXXX)"
+  printf '%s\n' "${_}suffix" "${scratch}"
 }

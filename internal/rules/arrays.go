@@ -27,6 +27,7 @@ func checkEmptyArrayExpansion(f *File, r *Reporter) {
 	if !f.UsesDybatpho {
 		return
 	}
+	up := f.parents()
 	eachFunc(f, func(decl *syntax.FuncDecl) {
 		empty := emptyArrays(decl)
 		if len(empty) == 0 {
@@ -47,7 +48,7 @@ func checkEmptyArrayExpansion(f *File, r *Reporter) {
 				if name == "" || !empty[name] {
 					return true
 				}
-				if at, ok := filled[name]; ok && n.Pos().After(at) {
+				if at, ok := filled[name]; ok && n.Pos().After(at) || guardedByLength(n, name, up) {
 					return true
 				}
 				r.At(n.Pos(), "%q may be empty here, and Bash 4.3 stops a `set -u` script on `${%s[@]}` of an empty array; write `${%s[@]+\"${%s[@]}\"}`",
@@ -172,6 +173,25 @@ func testsLength(cond []*syntax.Stmt, name string) bool {
 		})
 	}
 	return found
+}
+
+// guardedByLength reports whether an expansion only runs once a test has seen
+// the array hold something: the body of `if ((${#a[@]} > 0)); then` or the
+// right side of `((${#a[@]})) &&`.
+func guardedByLength(node syntax.Node, name string, up map[syntax.Node]syntax.Node) bool {
+	for cur := node; up[cur] != nil; cur = up[cur] {
+		switch p := up[cur].(type) {
+		case *syntax.IfClause:
+			if inStmts(p.Then, cur) && testsLength(p.Cond, name) {
+				return true
+			}
+		case *syntax.BinaryCmd:
+			if p.Op == syntax.AndStmt && p.Y == cur && testsLength([]*syntax.Stmt{p.X}, name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // hasSureElement reports whether an array literal yields at least one element

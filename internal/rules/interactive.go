@@ -59,7 +59,8 @@ func checkUnguardedPrompt(f *File, r *Reporter) {
 }
 
 // readsStream reports whether a `read` consumes a stream rather than asking
-// the user: the condition of a loop, or the end of a pipeline. A group such as
+// the user: the condition of a loop or the body of one that redirects its
+// input, or the end of a pipeline. A group such as
 // `{ read -r a; read -r b; } < file` or `... | { read -r x; }` hands its
 // input to every `read` inside it.
 func readsStream(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
@@ -67,7 +68,19 @@ func readsStream(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) bool {
 	for {
 		switch p := up[cur].(type) {
 		case *syntax.WhileClause:
-			return inStmts(p.Cond, cur)
+			if inStmts(p.Cond, cur) {
+				return true
+			}
+			// The body of `while read ...; done < file` reads the same file.
+			loop, ok := up[p].(*syntax.Stmt)
+			if !ok {
+				return false
+			}
+			if redirectsInput(loop) {
+				return true
+			}
+			cur = loop
+			continue
 		case *syntax.BinaryCmd:
 			if p.Op == syntax.Pipe || p.Op == syntax.PipeAll {
 				return syntax.Node(p.Y) == cur

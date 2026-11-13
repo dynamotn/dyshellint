@@ -71,4 +71,8 @@ function _read_grouped {
   (read -r piped) <<< "$1"
   { read -r first; } > "$1"
   printf '%s %s\n' "${first}" "${second}"
+  while IFS= read -r first || [[ -n "${first}" ]]; do
+    IFS= read -r second
+    printf '%s=%s\n' "${first}" "${second}"
+  done < "$1"
 }

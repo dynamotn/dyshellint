@@ -155,6 +155,10 @@ func checkBracedSpecialParams(f *File, r *Reporter) {
 		if !specialParams.MatchString(exp.Param.Value) {
 			return true
 		}
+		// `${_}suffix` without braces would read `$_suffix`, another name.
+		if end := int(exp.End().Offset()); end < len(f.Src) && isVarName(exp.Param.Value+string(f.Src[end])) {
+			return true
+		}
 		r.At(exp.Pos(), "`${%s}` does not need braces; write `$%s`", exp.Param.Value, exp.Param.Value)
 		return true
 	})
@@ -221,6 +225,10 @@ var handmadeTempPath = regexp.MustCompile(`/tmp/[^"'\s$]*(\$\$|\$\{?RANDOM|\$\(d
 
 func checkHandmadeTempPath(f *File, r *Reporter) {
 	syntax.Walk(f.Syntax, func(node syntax.Node) bool {
+		// The template of `mktemp /tmp/name.XXXXXX` is the safe way to name one.
+		if call, ok := node.(*syntax.CallExpr); ok && callName(call) == "mktemp" {
+			return false
+		}
 		word, ok := node.(*syntax.Word)
 		if !ok {
 			return true

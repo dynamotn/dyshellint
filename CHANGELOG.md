@@ -46,6 +46,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BSG023` no longer reads an issue reference, such as `TODO(#123)` or
   `TODO(https://…/issues/4)`, as the name of an author.
 
+- `BSG098` no longer warns about a `read` in the body of a loop that reads its
+  input from a file, as in `while read -r key; do read -r value; done < file`.
+
+- `BSG106` no longer warns about a handler that calls a cleanup function and
+  then re-raises the signal or exits, such as
+  `trap '_cleanup; trap - INT; kill -s INT "$$"' INT`, the form it recommends.
+
+- `BSG045` no longer reports the template of `mktemp /tmp/name.XXXXXX` as a
+  predictable path.
+
+- `BSG043` no longer asks to drop the braces of `${_}` when a name character
+  follows: `$_suffix` would read another variable.
+
+- `BSG049` no longer warns about `"${a[@]}"` behind an explicit length check,
+  such as `if ((${#a[@]} > 0)); then` or `((${#a[@]})) &&`.
+
 ## [1.2.0]
 
 ### Added
