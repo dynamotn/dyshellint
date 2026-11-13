@@ -17,5 +17,7 @@ function _count {
   if ((count++)); then total=1; fi
   ((++count))
   count=$((count + 1))
+  [[ -n "${total}" ]] && ((count++))
+  if [[ -n "${total}" ]] && ((count++)); then total=2; fi
   printf '%s %s\n' "${count}" "${total}"
 }

@@ -100,6 +100,28 @@ func TestOtherDefinitionIsStable(t *testing.T) {
 	}
 }
 
+// helperCaller sources lib.sh and prints what its `_helper` prints.
+const helperCaller = `#!/usr/bin/env bash
+. "${BASH_SOURCE[0]%/*}/lib.sh"
+printf '%s\n' "$(_helper)"
+`
+
+// TestPrivateFuncFromSourcedFile expects a call to a private function the
+// file does not define to reach the one of the file it sources, not the one
+// of a file that sorts first and that it never loads.
+func TestPrivateFuncFromSourcedFile(t *testing.T) {
+	other := source{"a_other.sh", "#!/usr/bin/env bash\nfunction _helper {\n  exit 1\n}\n_helper\n"}
+	prints := source{"lib.sh", "function _helper {\n  printf 'x\\n'\n}\n"}
+	dies := source{"lib.sh", "function _helper {\n  exit 1\n}\n"}
+	caller := source{"z_main.sh", helperCaller}
+	if got := linkAndRun(t, "BSG047", other, prints, caller); len(got) != 0 {
+		t.Errorf("the sourced _helper only prints, got %v", got)
+	}
+	if got := linkAndRun(t, "BSG047", other, dies, caller); !reflect.DeepEqual(got, []string{"z_main.sh:3:16"}) {
+		t.Errorf("the sourced _helper can die, got %v", got)
+	}
+}
+
 // TestLongCallChain follows a call through thousands of functions to the one
 // that dies, which a pass over every edge per level made take seconds.
 func TestLongCallChain(t *testing.T) {

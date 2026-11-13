@@ -49,9 +49,9 @@ func checkDieInSubst(f *File, r *Reporter) {
 				callee)
 			return true
 		}
-		// An entrypoint that loads dybatpho runs under the strict mode it turns
-		// on, so the failed assignment stops the script there.
-		if statusChecked(stmt, up) || f.Role == RoleEntrypoint && f.UsesDybatpho {
+		// An entrypoint that stops on error, through `set -e` or the strict
+		// mode dybatpho turns on, stops the script at the failed assignment.
+		if statusChecked(stmt, up) || f.Role == RoleEntrypoint && stopsOnError(f) {
 			return true
 		}
 		r.At(cs.Pos(), "%q can stop the script, but inside `$(...)` it only ends the subshell and the caller carries on; check the status right here (`|| return`), or call it in the caller's shell",

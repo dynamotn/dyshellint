@@ -3,7 +3,7 @@
 # @brief Functions that can stop the script, called inside a substitution
 # @description A refusal inside `$(...)` ends only the subshell, so each call
 #   below either loses the refusal or checks for it on the spot.
-set -euo pipefail
+set -uo pipefail
 
 #######################################
 # @description Print a number, or stop the script on anything else
@@ -35,6 +35,22 @@ function _echo {
 }
 
 #######################################
+# @description Define a helper that stops the script, without calling it
+# @noargs
+# @stdout A greeting
+#######################################
+function _setup {
+  #######################################
+  # @description Stop the script
+  # @noargs
+  #######################################
+  function _bail {
+    exit 1
+  }
+  printf 'ok\n'
+}
+
+#######################################
 # @description Call the parser every way, checked and not
 # @arg $1 string Value to check
 #######################################
@@ -48,6 +64,7 @@ function _main {
   printf '%s\n' "$(_parse "$1")"
   number=$(_wrapper "$1")
   plain=$(_echo "$1")
+  plain=$(_setup)
   [[ -n "${plain}" ]] || exit "$(_parse 1)"
   printf '%s %s\n' "${number}" "${plain}"
 }

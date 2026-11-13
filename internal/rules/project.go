@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -14,10 +15,14 @@ type Project struct {
 	// defs maps each file to the functions it defines, by name. The last
 	// definition in a file wins, as it does when the file runs.
 	defs map[*File]map[string]*syntax.FuncDecl
-	// funcs maps a function name to the definition a file that does not define
-	// it reaches: the one of the file whose path sorts first, so that what a
+	// funcs maps a public function name to the definition a file that does not
+	// define it reaches: the one of the file whose path sorts first, so that what a
 	// rule finds does not depend on the order the files were named in.
 	funcs map[string]*syntax.FuncDecl
+	// sources maps each file to the files of the run it sources, in path
+	// order. A sourced path is mostly built from a variable, so a file is
+	// matched by its base name.
+	sources map[*File][]*File
 	// canDie holds the functions that can end the shell they run in, directly
 	// with `dybatpho::die` or `exit`, or through a function that can.
 	canDie map[*syntax.FuncDecl]bool
@@ -63,6 +68,7 @@ func Link(files []*File) *Project {
 	p := &Project{
 		defs:     map[*File]map[string]*syntax.FuncDecl{},
 		funcs:    map[string]*syntax.FuncDecl{},
+		sources:  map[*File][]*File{},
 		canDie:   map[*syntax.FuncDecl]bool{},
 		canFail:  map[*syntax.FuncDecl]bool{},
 		runners:  map[*syntax.FuncDecl]bool{},
@@ -85,6 +91,18 @@ func Link(files []*File) *Project {
 				p.funcs[name] = decl
 			}
 		}
+	}
+	byBase := map[string][]*File{}
+	for _, f := range byPath {
+		byBase[filepath.Base(f.Path)] = append(byBase[filepath.Base(f.Path)], f)
+	}
+	for _, f := range files {
+		eachCall(f, func(call *syntax.CallExpr, name string) {
+			if (name == "." || name == "source") && len(call.Args) > 1 {
+				base := filepath.Base(strings.Trim(wordSource(call.Args[1]), `"'`))
+				p.sources[f] = append(p.sources[f], byBase[base]...)
+			}
+		})
 	}
 	p.spread()
 	// What a rule reads of every file is gathered here, once for the run,
@@ -115,12 +133,23 @@ func (f *File) project() *Project {
 }
 
 // Func returns the definition a call to the function from the file runs: the
-// file's own when it has one, else the one of the run, or nil.
+// file's own when it has one, else the one of the run, or nil. A private
+// function, named with a leading `_`, is a helper of its own file: two files
+// may each have a `_helper` of their own, so a call reaches another file's
+// only when the caller sources that file.
 func (p *Project) Func(f *File, name string) *syntax.FuncDecl {
 	if decl := p.defs[f][name]; decl != nil {
 		return decl
 	}
-	return p.funcs[name]
+	if !strings.HasPrefix(name, "_") {
+		return p.funcs[name]
+	}
+	for _, sourced := range p.sources[f] {
+		if decl := p.defs[sourced][name]; decl != nil {
+			return decl
+		}
+	}
+	return nil
 }
 
 // CanDie reports whether calling the function from the file can end the shell
@@ -267,7 +296,8 @@ func reach(marked map[*syntax.FuncDecl]bool, callers map[*syntax.FuncDecl][]*syn
 // ownCalls walks the simple commands a body runs in its own shell, with the
 // literal name of each, or the empty string for a name built by expansion. A command
 // inside `$(...)`, `<(...)` or `( ... )` runs in a subshell, where `exit` and
-// `dybatpho::die` end only that subshell, so those are left out.
+// `dybatpho::die` end only that subshell, so those are left out. So is a
+// function defined in the body: its `exit` runs only when it is called.
 func ownCalls(node syntax.Node, fn func(call *syntax.CallExpr, callee string)) {
 	if node == nil {
 		return
@@ -276,6 +306,8 @@ func ownCalls(node syntax.Node, fn func(call *syntax.CallExpr, callee string)) {
 		switch n := n.(type) {
 		case *syntax.CmdSubst, *syntax.ProcSubst, *syntax.Subshell:
 			return false
+		case *syntax.FuncDecl:
+			return n == node
 		case *syntax.CallExpr:
 			// A command whose name is not a literal, such as `"$@"`, is passed
 			// with an empty name: the rules that look for caller code need it.

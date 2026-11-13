@@ -72,6 +72,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BSG116` catches `[[ ${BASH_VERSINFO[0]} -ge 4 && ${BASH_VERSINFO[1]} -ge 3 ]]`,
   the `[[ ]]` spelling of the `(( ))` check it already reported.
 
+- A call to a private `_helper` reaches the caller's own definition, or the
+  one of a file it sources, never another script's helper of the same name, so
+  `BSG047`, `BSG084` and the other rules that follow a call into another file
+  no longer judge the wrong function.
+
+- `BSG047` no longer warns in an entrypoint that stops on error with a plain
+  `set -e`, as it already didn't for one that sources dybatpho, and no longer
+  counts the `exit` of a function defined inside another as the outer one
+  stopping the script.
+
+- `BSG084` reports a function that runs `export` or `readonly` inside `$(...)`,
+  where the variable is lost with the subshell.
+
+- `BSG088` reports `[[ ... ]] && ((count++))` and `... || ((count++))`: the
+  last command of a list still stops a `set -e` script when the count is 0.
+
 ## [1.2.0]
 
 ### Added

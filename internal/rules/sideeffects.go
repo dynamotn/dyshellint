@@ -23,9 +23,9 @@ func init() {
 var registrars = map[string]bool{"dybatpho::secret_register": true}
 
 // globalWrite returns the first global a function sets in its own shell: an
-// assignment to a name it did not declare local, `declare -g`, or a target of
-// `read`, `mapfile` or `printf -v` with a literal name. A call to a registrar
-// counts as one.
+// assignment to a name it did not declare local, `declare -g`, `export` or
+// `readonly`, or a target of `read`, `mapfile` or `printf -v` with a literal
+// name. A call to a registrar counts as one.
 func globalWrite(decl *syntax.FuncDecl) string {
 	names, _ := funcLocals(decl)
 	local := map[string]bool{}
@@ -50,6 +50,15 @@ func globalWrite(decl *syntax.FuncDecl) string {
 				for _, arg := range n.Args {
 					if arg.Name != nil {
 						found = arg.Name.Value
+					}
+				}
+			}
+			// `export` and `readonly` in a function act on the global, unless
+			// the name was declared local first.
+			if n.Variant != nil && (n.Variant.Value == "export" || n.Variant.Value == "readonly") {
+				for _, arg := range n.Args {
+					if arg.Name != nil {
+						note(arg.Name.Value)
 					}
 				}
 			}

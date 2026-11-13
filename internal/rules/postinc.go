@@ -37,7 +37,7 @@ func checkPostIncrementStatement(f *File, r *Reporter) {
 			return true
 		}
 		cmd, ok := stmt.Cmd.(*syntax.ArithmCmd)
-		if !ok || !hasPostStep(cmd.X) || statusUsed(stmt, up) {
+		if list := listOf(stmt, up); !ok || !hasPostStep(cmd.X) || list.Negated || statusUsed(list, up) {
 			return true
 		}
 		r.At(cmd.Pos(), "`((x++))` returns the old value, so it fails when that value is 0 and `set -e` ends the script; write `((x += 1))` or `x=$((x + 1))`")
@@ -59,6 +59,24 @@ func hasPostStep(expr syntax.ArithmExpr) bool {
 		return hasPostStep(e.X)
 	}
 	return false
+}
+
+// listOf climbs from a statement that ends an `&&` or `||` list to the
+// statement of the whole list: `set -e` ignores the status of every command
+// of a list but the last, whose status becomes the list's own, as in
+// `[[ -n ${1:-} ]] && ((count++))`.
+func listOf(stmt *syntax.Stmt, up map[syntax.Node]syntax.Node) *syntax.Stmt {
+	for {
+		bin, ok := up[stmt].(*syntax.BinaryCmd)
+		if !ok || bin.Y != stmt || bin.Op != syntax.AndStmt && bin.Op != syntax.OrStmt {
+			return stmt
+		}
+		outer, ok := up[bin].(*syntax.Stmt)
+		if !ok {
+			return stmt
+		}
+		stmt = outer
+	}
 }
 
 // statusUsed reports whether a statement's status is read rather than left to

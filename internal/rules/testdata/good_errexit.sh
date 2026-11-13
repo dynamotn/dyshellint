@@ -20,13 +20,24 @@ function _version {
 }
 
 #######################################
+# @description Print the name given, or stop the script without one
+# @arg $1 string Name
+# @stdout The name
+#######################################
+function _name {
+  [[ -n "${1:-}" ]] || exit 1
+  printf '%s\n' "$1"
+}
+
+#######################################
 # @description Print the version
 # @noargs
 #######################################
 function _main {
-  local version
+  local version name
   version="$(_version)"
-  printf '%s\n' "${version}"
+  name="$(_name "${1:-}")"
+  printf '%s %s\n' "${version}" "${name}"
 }
 
-_main
+_main "$@"

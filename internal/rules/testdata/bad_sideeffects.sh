@@ -30,13 +30,23 @@ function _pure {
 }
 
 #######################################
+# @description Print a value, exporting the mode it runs in
+# @noargs
+# @stdout The value
+#######################################
+function _configure {
+  export APP_MODE=prod
+  printf 'x\n'
+}
+#######################################
 # @description Use both
 # @noargs
 #######################################
 function _main {
-  local first second
+  local first second mode
   first="$(_lookup)"
+  mode="$(_configure)"
   second="$(_pure)"
   _lookup > /dev/null
-  printf '%s %s\n' "${first}" "${second}"
+  printf '%s %s %s\n' "${first}" "${second}" "${mode}"
 }
